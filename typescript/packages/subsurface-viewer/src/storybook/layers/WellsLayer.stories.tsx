@@ -198,10 +198,29 @@ export const DiscreteWellLogs: StoryObj<typeof SubsurfaceViewer> = {
     },
 };
 
+// args: {
+//     id: "refine-wells",
+//     cameraPosition: {
+//         rotationOrbit: -45,
+//         rotationX: 15,
+//         zoom: BBox,
+//         target: [],
+//     },
+//     views: default3DViews,
+// },
+
 export const ContinuousWellLogs: StoryObj<typeof SubsurfaceViewer> = {
     args: {
         ...defaultProps,
-        layers: [continuousLogsLayer],
+        layers: [continuousLogsLayer,
+            new AxesLayer({
+                id: "axes-layer",
+                bounds: [433500, 6476000, 0, 438000, 6480000, 3500],
+                ZIncreasingDownwards: true,
+            }),
+
+        ],
+        views: default3DViews,
     },
     parameters: {
         docs: {
@@ -562,7 +581,10 @@ export const WellsRefine: StoryObj<typeof WellsRefineComponent> = {
 export const Wells3d: StoryObj<typeof SubsurfaceViewer> = {
     args: {
         ...defaultProps,
-        layers: [volveWellsFromResourcesLayer],
+        layers: [{...volveWellsFromResourcesLayer,
+            //ZIncreasingDownwards: true
+        }
+        ],  // XXX
         views: default3DViews,
     },
     parameters: {

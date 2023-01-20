@@ -15,7 +15,6 @@ import type {
     LayerPickInfo,
     PropertyDataType,
 } from "../utils/layerTools";
-
 import { createPropertyData, isDrawingEnabled } from "../utils/layerTools";
 
 import { PathStyleExtension } from "@deck.gl/extensions/typed";
@@ -31,6 +30,7 @@ import type {
     LineString,
     Point,
 } from "geojson";
+
 import { distance, dot, subtract } from "mathjs";
 
 import GL from "@luma.gl/constants";
@@ -52,7 +52,10 @@ import {
     coarsenWells,
     invertPath,
     splineRefine,
+    getWell,
 } from "./utils/spline";
+import { cloneDeep } from "lodash";
+import privateLayer from "./privateLayer";
 
 type StyleAccessorFunction = (
     object: Feature,
@@ -275,6 +278,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         }
 
         if (this.props.ZIncreasingDownwards) {
+            console.log("INVERTING 1")
             data = invertPath(data);
         }
 
@@ -285,6 +289,9 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         checkWells(data);
 
         const coarseData = coarsenWells(data);
+
+        // XXX  NB Gaar raskere med en coarse versjon... NB DETTE FJERNET LOG DATANE SÅ BE CAREFULLlll
+        //data = cloneDeep(coarseData)
 
         const doRefine =
             typeof refine === "number" ? refine > 1 : (refine as boolean);
@@ -400,8 +407,18 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
             return [];
         }
 
-        const data = this.state["data"];
+        let data = this.state["data"];
         const coarseData = this.state["coarseData"];
+
+        // if (!this.props.ZIncreasingDownwards) {
+        //     console.log("INVERTING 2")
+        //     data = invertPath(data);
+        // }
+        // const refine = this.props.refine;  // XXX
+        // data = refine
+        //     ? splineRefine(data) // smooth well paths.
+        //     : cloneDeep(data);
+        const wellStrings = getWell(data as unknown as FeatureCollection);
 
         const is3d = this.context.viewport.constructor === OrbitViewport;
         const positionFormat = "XYZ";
@@ -421,6 +438,18 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         // Reduced details when rotating or panning the view if "fastDrawing " is set.
         const fastDrawing = this.props.simplifiedRendering;
+        const myWells = new privateLayer(
+            this.getSubLayerProps({
+                id: "privateLayer",
+                wellStrings,
+                material: {
+                    ambient: 0.35,
+                    diffuse: 0.6,
+                    shininess: 32,
+                    specularColor: [255, 255, 255],
+                },
+            })
+        );
 
         const defaultLayerProps = {
             data,
@@ -526,6 +555,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
                         this.props.lineStyle?.color
                     ),
                 getColor: (d: LogCurveDataType): Color[] =>
+                    // XXX [0, 255, 0],
                     getLogColor(
                         d,
                         this.props.logrunName,
@@ -649,6 +679,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         const layers = [
             outlineLayer,
+            myWells,
             logLayer,
             colorsLayer,
             highlightLayer,

@@ -183,6 +183,31 @@ export function CatmullRom(
 }
 
 /**
+ * Returns the points in thee well string...
+ */
+export function getWell(data_in: FeatureCollection): number[][] {
+    const data = data_in;
+    const data_out: number[][] = [];
+
+    const no_wells = data.features.length;
+    for (let well_no = 0; well_no < no_wells; well_no++) {
+
+        const geometryCollection = data.features[well_no]
+            .geometry as GeometryCollection;
+        const lineString = geometryCollection?.geometries[1] as LineString;
+
+        if (lineString.coordinates?.length === undefined) {
+            continue;
+        }
+
+        const coords = lineString.coordinates as Position3D[];
+        data_out.push(coords.flat());
+    }
+
+    return data_out;
+}
+
+/**
  * Will interpolate and refine wellpaths using spline interploation resulting
  * in smoother curves with more points.
  * Assumes 3D data.
@@ -345,7 +370,7 @@ export function coarsenWells(data_in: FeatureCollection): FeatureCollection {
             lineString.coordinates = coordsSimplified;
         } else {
             const options = {
-                tolerance: 0.01,
+                tolerance: 1, //0.01,
                 highQuality: false,
                 mutate: false,
             };
