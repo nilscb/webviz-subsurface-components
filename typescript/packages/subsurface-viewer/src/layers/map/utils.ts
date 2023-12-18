@@ -1,8 +1,8 @@
-import type { Params } from "./mapLayer";
+import type { Params, MeshAttributes } from "./mapLayer";
 
 type Vec = [number, number, number];
 
-function getFloat32ArrayMinMax(data: Float32Array) {
+function getFloat32ArrayMinMax(data: Float32Array): [number, number] {
     let max = -99999999;
     let min = 99999999;
     for (let i = 0; i < data.length; i++) {
@@ -132,7 +132,7 @@ function calcNormal(
 /** Given the input data will build and return the attributes (vertices and indices for triangles and lines)
  * that is used by WebGl. Using indice, lines and triangles share common vertices to save memory.
  */
-export function makeFullMesh(params: Params) {
+export async function makeFullMesh(params: Params): Promise<MeshAttributes> {
     // Keep
     //const t0 = performance.now();
 
@@ -507,7 +507,7 @@ export function makeFullMesh(params: Params) {
     // const t1 = performance.now();
     // console.debug(`Task makeMesh took ${(t1 - t0) * 0.001}  seconds.`);
 
-    return [
+    return {
         positions,
         normals,
         triangleIndices,
@@ -515,5 +515,5 @@ export function makeFullMesh(params: Params) {
         lineIndices,
         meshZValueRange,
         propertyValueRange,
-    ];
+    } as MeshAttributes;
 }

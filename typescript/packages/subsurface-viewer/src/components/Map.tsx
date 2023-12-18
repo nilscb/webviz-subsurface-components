@@ -1069,9 +1069,9 @@ class ViewController {
                 this.result_.viewState !== newViewState ? " state" : "";
             const linkMsg = viewsMsg && stateMsg ? " and" : "";
 
-            console.log(
-                `ViewController returns new${viewsMsg}${linkMsg}${stateMsg}`
-            );
+            // console.log(
+            //     `ViewController returns new${viewsMsg}${linkMsg}${stateMsg}`
+            // );
         }
 
         this.state_ = fullState;
