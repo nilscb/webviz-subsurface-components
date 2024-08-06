@@ -205,6 +205,7 @@ export function getImageData(
     colorTables: colorTablesArray,
     colorMapFunction: colorMapFunctionType | undefined
 ) {
+    console.log("COLORMAPNAME", colorMapName)
     type funcType = (x: number) => Color;
 
     const isColorMapFunctionDefined = typeof colorMapFunction !== "undefined";

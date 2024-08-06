@@ -24,12 +24,53 @@ import fsLineShader from "./fragment_lines.glsl";
 import { colorTablesArray, rgbValues } from "@emerson-eps/color-tables/";
 import { createDefaultContinuousColorScale } from "@emerson-eps/color-tables/dist/component/Utils/legendCommonFunction";
 import { Texture2D } from "@luma.gl/webgl";
+
 import GL from "@luma.gl/constants";
 
 import { Vector3, Matrix3 } from "@math.gl/core";
 
 import vertexShader from "./vertex.glsl";
 import fragmentShader from "./fragment.glsl";
+
+function shuffle(array) {
+    let currentIndex = array.length;
+
+    // While there remain elements to shuffle...
+    while (currentIndex != 0) {
+        // Pick a remaining element...
+        const randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+
+        // And swap it with the current element.
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex],
+            array[currentIndex],
+        ];
+    }
+}
+
+function getImageData(colorTables: colorTablesArray) {
+    const defaultColorMap = createDefaultContinuousColorScale;
+    let colorMap = defaultColorMap();
+
+    colorMap = (value: number) => rgbValues(value, "Physics", colorTables);
+
+    //const data = new Uint8Array(256 * 3);
+    const data = new Float32Array(256 * 3);
+
+    for (let i = 0; i < 256; i++) {
+        const value = i / 255.0;
+        const color = colorMap ? colorMap(value) : [0, 0, 0];
+        if (color) {
+            data[3 * i + 0] = color[0] / 255;
+            data[3 * i + 1] = color[1] / 255;
+            data[3 * i + 2] = color[2] / 255;
+        }
+    }
+
+    return data ? data : [0, 0, 0];
+}
+
 
 const DEFAULT_TEXTURE_PARAMETERS = {
     [GL.TEXTURE_MIN_FILTER]: GL.LINEAR_MIPMAP_LINEAR,
@@ -118,8 +159,16 @@ export default class privateLayer extends Layer<privateLayerProps<unknown>> {
 
     //eslint-disable-next-line
     getModel(gl: any, wellStrings: number[][]) {
+
+        const myColors = getImageData(
+            (this.context as DeckGLLayerContext).userData.colorTables
+        );
+        //shuffle(myColors); // XXX
+        //console.log("myColors", myColors)
+
         const vertexs: number[] = [];
         const colors: number[] = [];
+        const myMds: number[] = [];
 
         const c1 = [1, 0, 0];
         const c2 = [0, 1, 0];
@@ -152,7 +201,7 @@ export default class privateLayer extends Layer<privateLayerProps<unknown>> {
             const p1 = new Vector3([w[0], w[1], w[2]]);
             const p2 = new Vector3([w[3], w[4], w[5]]);
             const p3 = new Vector3([w[6], w[7], w[8]]);
-            const radii = 20 + (well_no) * 1;  // getRadii();
+            const radii = getRadii() + (well_no) * 1;
             getCircle(p1, p2, current_circle, radii);
             getCircle(p2, p3, next_circle, radii);
 
@@ -179,22 +228,28 @@ export default class privateLayer extends Layer<privateLayerProps<unknown>> {
                     // t1
                     vertexs.push(x1, y1, z1);
                     colors.push(...col);
+                    myMds.push(0);
 
                     vertexs.push(x2, y2, z2);
                     colors.push(...col);
+                    myMds.push(0);
 
                     vertexs.push(x3, y3, z3);
                     colors.push(...col);
+                    myMds.push(1);
 
                     // t2
                     vertexs.push(x3, y3, z3);
                     colors.push(...col);
+                    myMds.push(1);
 
                     vertexs.push(x2, y2, z2);
                     colors.push(...col);
+                    myMds.push(0);
 
                     vertexs.push(x4, y4, z4);
                     colors.push(...col);
+                    myMds.push(1);
                 }
 
                 const p1 = new Vector3([w[i * 3 + 0], w[i * 3 + 1], w[i * 3 + 2]]);
@@ -215,14 +270,19 @@ export default class privateLayer extends Layer<privateLayerProps<unknown>> {
             geometry: new Geometry({
                 drawMode: GL.TRIANGLES,  //GL.TRIANGLES, LINES
                 attributes: {
-                    positions: { value: new Float32Array(vertexs), size: 3 },
+                    positions: { value: new Float32Array(vertexs), size: 3 },  // XXX trenger vel ikke kopi på disse...
                     colors: { value: new Float32Array(colors), size: 3 },
+                    myMds: { value: new Float32Array(myMds), size: 1 },
                 },
                 vertexCount: vertexs.length / 3,
             }),
 
             modules: [project, picking, phongLighting],
             isInstanced: false, // This only works when set to false.
+        });
+        model.setUniforms({
+            //myColors: { value: new Float32Array(myColors), size: 3 },
+            myColors,
         });
 
         return { model };

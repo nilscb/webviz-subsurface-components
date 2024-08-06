@@ -292,15 +292,16 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         // XXX  NB Gaar raskere med en coarse versjon... NB DETTE FJERNET LOG DATANE SÅ BE CAREFULLlll
         //data = cloneDeep(coarseData)
+        //data = coarseData;
 
         const doRefine =
             typeof refine === "number" ? refine > 1 : (refine as boolean);
 
         const stepCount = typeof refine === "number" ? refine : 5;
 
-        data = doRefine
-            ? splineRefine(data, stepCount) // smooth well paths.
-            : data;
+        // data = doRefine
+        //     ? splineRefine(data, stepCount) // smooth well paths.
+        //     : data;
 
         this.setState({
             ...this.state,
@@ -418,7 +419,8 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         // data = refine
         //     ? splineRefine(data) // smooth well paths.
         //     : cloneDeep(data);
-        const wellStrings = getWell(data as unknown as FeatureCollection);
+        //const wellStrings = getWell(data as unknown as FeatureCollection); // XXX
+        const wellStrings = getWell(coarseData as unknown as FeatureCollection);  // XXX note bruk denne linjen for færre triangler
 
         const is3d = this.context.viewport.constructor === OrbitViewport;
         const positionFormat = "XYZ";
