@@ -56,6 +56,9 @@ import {
 } from "./utils/spline";
 import { cloneDeep } from "lodash";
 import privateLayer from "./privateLayer";
+//import { GeoJSONLoader } from "@loaders.gl/json";
+import { GeoJSONLoader } from "@loaders.gl/json";
+import { load } from "@loaders.gl/core";
 
 type StyleAccessorFunction = (
     object: Feature,
@@ -161,6 +164,7 @@ const defaultProps = {
     section: false,
 };
 
+// One of these for each well
 export interface LogCurveDataType {
     header: {
         name: string;
@@ -268,10 +272,31 @@ export function getSize(
     return 0;
 }
 
+async function loadMyData( logData: string) {
+    const data = await load(logData, GeoJSONLoader);  // , {json: options}
+
+    return Promise.all([data]);
+}
+
 export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
     initializeState(): void {
         let data = this.props.data as FeatureCollection<GeometryCollection>;
         const refine = this.props.refine;
+
+        // XXX //////////////////////////////////////////////////////////
+        const p = loadMyData(this.props.logData);
+        p.then(([logData]) => {
+            const well_no = 0;
+            const mytest = getLogPath_(
+                data.features,
+                logData[well_no],
+                "BLOCKING",
+                [1, 1, 1],   // this.props.lineStyle?.color
+            );
+            console.log("JIPPI", mytest    )
+
+        });
+        //////////////////////////////////////////////////////////
 
         if (!data || isEmpty(data)) {
             return;
@@ -439,6 +464,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         };
 
         // Reduced details when rotating or panning the view if "fastDrawing " is set.
+        //console.log("wellStrings", wellStrings)
         const fastDrawing = this.props.simplifiedRendering;
         const myWells = new privateLayer(
             this.getSubLayerProps({
@@ -539,6 +565,18 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         const highlightMultiWellsLayer = new GeoJsonLayer(
             highlightMultiWellsLayerProps
         );
+
+
+        //console.log(this.props.logData);
+        ///
+        // const well_no = 0;
+        // const mytest = getLogPath(
+        //     data.features,
+        //     this.props.logData[well_no],
+        //     "BLOCKING",
+        //     [1, 1, 1],   // this.props.lineStyle?.color
+        // );
+        ///
 
         const logLayer = new PathLayer<LogCurveDataType>(
             this.getSubLayerProps({
@@ -944,6 +982,37 @@ function getPositionByMD(well_xyz: Position[], well_mds: number[], md: number) {
         well_xyz[l_idx],
         well_xyz[h_idx]
     )(md_normalized);
+}
+
+
+function getLogPath_(
+    wells_data: Feature[],
+    d: LogCurveDataType,
+    logrun_name: string,
+    trajectory_line_color?: ColorAccessor
+): Position[] {
+    const well_object = getWellObjectByName(wells_data, d.header.well);
+    if (!well_object) return [];
+
+    const well_xyz = getTrajectory(well_object, trajectory_line_color);
+    const well_mds = getWellMds(well_object);
+
+    if (
+        well_xyz == undefined ||
+        well_mds == undefined ||
+        well_xyz.length == 0 ||
+        well_mds.length == 0
+    )
+        return [];
+
+    const log_xyz: Position[] = [];
+    const log_mds = getLogMd(d, logrun_name);
+    log_mds.forEach((md) => {
+        const xyz = getPositionByMD(well_xyz, well_mds, md); // XXX
+        log_xyz.push(xyz);
+    });
+
+    return log_xyz;
 }
 
 function getLogPath(

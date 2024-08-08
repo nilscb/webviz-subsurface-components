@@ -134,5 +134,8 @@
     },
     "workspaces": [
         "packages/*"
-    ]
+    ],
+    "dependencies": {
+        "loaders.gl": "^0.3.5"
+    }
 }
