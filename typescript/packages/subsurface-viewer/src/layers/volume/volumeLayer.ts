@@ -1,5 +1,5 @@
 import type { Color, UpdateParameters } from "@deck.gl/core/typed";
-import { COORDINATE_SYSTEM, Layer, project32 } from "@deck.gl/core/typed";
+import { COORDINATE_SYSTEM, Layer, project } from "@deck.gl/core/typed";
 import GL from "@luma.gl/constants";
 import { Model, Geometry } from "@luma.gl/engine";
 import fragmentShader from "./fragment.glsl";
@@ -7,9 +7,49 @@ import vertexShader from "./vertex.glsl";
 import type { DeckGLLayerContext } from "../../components/Map";
 import type { ExtendedLayerProps } from "../utils/layerTools";
 
+const s = 1; //1;
+const lines = new Float32Array([
+    0, 0, 0,  s, 0, 0,  0, s, 0,  // bot Z
+    s, 0, 0,  s, s, 0,  0, s, 0,
 
-const lines = new Float32Array([0, 0, 0,  1, 0, 0,  0, 1, 0]);
-const normals = new Float32Array([0, 0, -1, 0, 0, -1 ,0, 0, -1]);
+    0, 0, s,  s, 0, s,  0, s, s,  // top
+    s, 0, s,  s, s, s,  0, s, s,
+
+
+    0, 0, 0,   0, s, 0,  0, 0, s,  // left X
+    0, s, 0,   0, s, s,  0, 0, s,
+
+    s, 0, 0,   s, s, 0,  s, 0, s,  // right
+    s, s, 0,   s, s, s,  s, 0, s,
+
+
+    0, 0, 0,   s, 0, 0,  s, 0, s,  // front Y
+    0, 0, 0,   0, 0, s,  s, 0, s,
+
+    0, s, 0,   s, s, 0,  s, s, s,  // back
+    0, s, 0,   0, s, s,  s, s, s,
+]);
+const normals = new Float32Array([
+    0, 0, -1, 0, 0, -1 ,0, 0, -1,  // bot
+    0, 0, -1, 0, 0, -1 ,0, 0, -1,
+
+    0, 0, 1,  0, 0, 1,  0, 0, 1,  // top
+    0, 0, 1,  0, 0, 1,  0, 0, 1,
+
+
+    -1, 0, 0, -1, 0, 0, -1, 0, 0,  // left
+    -1, 0, 0, -1, 0, 0, -1, 0, 0,
+
+    1, 0, 0, 1, 0, 0, 1, 0, 0,  // right
+    1, 0, 0, 1, 0, 0, 1, 0, 0,
+
+
+    0, -1, 0,  0, -1, 0,  0, -1, 0,  // front
+    0, -1, 0,  0, -1, 0,  0, -1, 0,
+
+    0, 1, 0,  0, 1, 0,  0, 1, 0,  // back
+    0, 1, 0,  0, 1, 0,  0, 1, 0,
+]);
 
 export interface VolumeLayerProps extends ExtendedLayerProps {
     //lines: number[]; // from pt , to pt.
@@ -41,7 +81,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
 
     //eslint-disable-next-line
     _getModels(gl: any) {
-        const color = [0, 0, 0, 1];
+        const color = [0.5, 0.5, 0.5, 0.5];
         const grids = new Model(gl, {
             id: `${this.props.id}-grids`,
             vs: vertexShader,
@@ -55,7 +95,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
                 },
                 vertexCount: lines.length / 3,
             }),
-            modules: [project32],  //  modules: [project32, picking, localPhongLighting, utilities],
+            modules: [project],  //  modules: [project32, picking, localPhongLighting, utilities],  project
             isInstanced: false,
         });
 
