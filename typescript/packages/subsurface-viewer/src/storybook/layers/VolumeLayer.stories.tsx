@@ -44,7 +44,14 @@ const axesLayer = {
 export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
     args: {
         id: "volume-layer",
-        bounds: [-1.5, -1.5, 1.5, 1.5],
+       // bounds: [-1.5, -1.5, 1.5, 1.5],
+        cameraPosition: {
+            rotationOrbit: 45,
+            rotationX: 45,
+            //zoom: [-100, -100, -10, 100, 100, 60] as BoundingBox3D,
+            zoom: 8,
+            target: [0, 0, 0],
+        },
         //layers: [new VolumeLayer({ ...layerProps }),],
         layers: [volumeLayer, axesLayer],
         views: {
