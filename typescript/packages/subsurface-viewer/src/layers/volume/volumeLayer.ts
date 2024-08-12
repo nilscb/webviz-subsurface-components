@@ -7,7 +7,7 @@ import vertexShader from "./vertex.glsl";
 import type { DeckGLLayerContext } from "../../components/Map";
 import type { ExtendedLayerProps } from "../utils/layerTools";
 
-const s = 1; //1;
+const s = 1.0; //1.2;
 const lines = new Float32Array([
     0, 0, 0,  s, 0, 0,  0, s, 0,  // bot Z
     s, 0, 0,  s, s, 0,  0, s, 0,
