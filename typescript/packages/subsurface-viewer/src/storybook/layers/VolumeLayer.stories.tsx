@@ -35,26 +35,18 @@ const volumeLayer = new VolumeLayer({
     ...layerProps,
 });
 
-const d = 0; //0.01;
+const d = 0.01;
 const axesLayer = new AxesLayer({
     //"@@type": "AxesLayer",
     id: "axes-layer2",
     //bounds: [0, 0, 0, 1, 1, 1],
-    bounds: [0+d, 0+d, 0+d, 1-d, 1-d, 1-d],
+    bounds: [-0.5+d, -0.5+d, -0.5+d, 0.5-d, 0.5-d, 0.5-d],
     ZIncreasingDownwards: false,
 });
-
-// const axesLayer2 = {
-//     "@@type": "AxesLayer",
-//     id: "axes-layer2",
-//     bounds: [3, 3, 0, 3 + 0.5, 3 + 0.5, 0.5],
-//     ZIncreasingDownwards: false,
-// };
 
 export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
     args: {
         id: "volume-layer",
-       // bounds: [-1.5, -1.5, 1.5, 1.5],
         cameraPosition: {
             rotationOrbit: 45,
             rotationX: 25,
@@ -62,8 +54,6 @@ export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
             zoom: 8,
             target: [0, 0, 0],
         },
-        //layers: [new VolumeLayer({ ...layerProps }),],
-        //layers: [volumeLayer, axesLayer, axesLayer2],
         layers: [volumeLayer, axesLayer],
         views: {
             layout: [1, 1] as [number, number],

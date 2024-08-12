@@ -8,7 +8,7 @@ import type { DeckGLLayerContext } from "../../components/Map";
 import type { ExtendedLayerProps } from "../utils/layerTools";
 
 const s = 1.0; //1.2;
-const lines = new Float32Array([
+let lines = new Float32Array([
     0, 0, 0,  s, 0, 0,  0, s, 0,  // bot Z
     s, 0, 0,  s, s, 0,  0, s, 0,
 
@@ -29,6 +29,9 @@ const lines = new Float32Array([
     0, s, 0,   s, s, 0,  s, s, s,  // back
     0, s, 0,   0, s, s,  s, s, s,
 ]);
+
+lines = lines.map(x => x - 0.5);
+
 const normals = new Float32Array([
     0, 0, -1, 0, 0, -1 ,0, 0, -1,  // bot
     0, 0, -1, 0, 0, -1 ,0, 0, -1,
