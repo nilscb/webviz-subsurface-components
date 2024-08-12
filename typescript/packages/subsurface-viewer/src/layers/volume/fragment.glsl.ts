@@ -59,7 +59,7 @@ void main(void) {
 
   // Step 3: Compute the step size to march through the volume grid
   vec3 dt_vec = (1.0 / (vec3(1.0, 1.0, 1.0)) * abs(ray_dir));
-  float dt = 0.01; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));
+  float dt = 0.005; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));
 
 
   // DEBUG XXX
@@ -89,7 +89,7 @@ void main(void) {
     if ( (p[0] > 0.25 && p[0] < 0.75)
       && (p[1] > 0.25 && p[1] < 0.75)
       && (p[2] > 0.25 && p[2] < 0.75)) {
-      val = 0.025;
+      val = 0.01;
       val_color = vec4(1.0, 0.0, 1.0,  val); 
     }
     else if ( (p[0] > 0.0 && p[0] < 0.25)
