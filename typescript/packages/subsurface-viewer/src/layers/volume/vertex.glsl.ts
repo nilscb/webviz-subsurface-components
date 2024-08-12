@@ -6,7 +6,7 @@ precision highp float;
 in vec3 positions;
 in vec3 normals;
 
-out vec3 normals_commonspace;
+flat out vec3 normals_commonspace;
 out vec3 position_commonspace;
 flat out vec3 cameraPosition;
 
