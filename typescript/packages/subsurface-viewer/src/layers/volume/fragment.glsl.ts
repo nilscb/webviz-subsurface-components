@@ -91,6 +91,12 @@ void main(void) {
       && (p[2] > 0.25 && p[2] < 0.75)) {
       val = 0.01;
       val_color = vec4(1.0, 0.0, 1.0,  val); 
+
+      // This flat sheet.
+      if (p[2] > 0.5 && p[2] < 0.51) {
+        val = 0.3;
+        val_color = vec4(0.0, 1.0, 0.0,  val); 
+      }
     }
     else if ( (p[0] > 0.0 && p[0] < 0.25)
       && (p[1] > 0.0 && p[1] < 0.25)
