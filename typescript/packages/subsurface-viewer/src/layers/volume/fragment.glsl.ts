@@ -30,7 +30,7 @@ void main(void) {
   vec3 view_direction = normalize(cameraPosition - position_commonspace);
   vec3 ray_dir = -view_direction;
   ray_dir = normalize(ray_dir);  // XXX trengs kanskje ikke. nei det gjode den ikke...
-  vec3 eye = cameraPosition;
+  vec3 eye = cameraPosition + vec3(0.5, 0.5, 0.5); // tranlserte den litt ned jeg for å fåden i midten...
 
   //vec3 n = normalize(normals_commonspace);
 
@@ -50,6 +50,7 @@ void main(void) {
     //return;
 		discard;
 	}
+
 
 	// We don't want to sample voxels behind the eye if it's
 	// inside the volume, so keep the starting point at or in front
@@ -81,24 +82,35 @@ void main(void) {
 		// Step 4.1: Sample the volume, and color it by the transfer function.
 		// Note that here we don't use the opacity from the transfer function,
 		// and just use the sample value as the opacity
+
 		// float val = texture(volume, p).r;
-    // vec4 val_color;
-    // float val = 0.0;
-    // if ( (p[0] > 0.25 && p[0] < 0.75)
-    //   && (p[1] > 0.25 && p[1] < 0.75)
-    //   && (p[2] > 0.25 && p[2] < 0.75)) {
-    //   val = 0.1; 
-    // }
-    // else {
-    //   val = 0.0;
-    // }
-    float dist = length(p - vec3(0.5, 0.5, 0.5));
-    float val = exp(-0.5 * ((dist * dist) / 0.01));
-    vec4 val_color = vec4(0.0, 1.0, 1.0,  val); //// vec4(texture(transfer_fcn, vec2(val, 0.5)).rgb, val);
-    if (dist < 0.2) {
-      val = 1.0;
-      val_color = vec4(1.0, 0.0, 1.0,  val);
+    vec4 val_color;
+    float val = 0.0;
+    if ( (p[0] > 0.25 && p[0] < 0.75)
+      && (p[1] > 0.25 && p[1] < 0.75)
+      && (p[2] > 0.25 && p[2] < 0.75)) {
+      val = 0.025;
+      val_color = vec4(1.0, 0.0, 1.0,  val); 
     }
+    else if ( (p[0] > 0.0 && p[0] < 0.25)
+      && (p[1] > 0.0 && p[1] < 0.25)
+      && (p[2] > 0.0 && p[2] < 0.25)) {
+      val = 1.0;
+      val_color = vec4(0.0, 0.0, 1.0,  val); 
+    }
+    else {
+      val = 0.0;
+      val_color = vec4(0.0, 0.0, 0.0,  val); 
+    }
+
+
+    // float dist = length(p - vec3(0.5, 0.5, 0.5));
+    // float val = exp(-0.5 * ((dist * dist) / 0.01));
+    // vec4 val_color = vec4(0.0, 1.0, 1.0,  val); //// vec4(texture(transfer_fcn, vec2(val, 0.5)).rgb, val);
+    // if (dist < 0.2) {
+    //   val = 1.0;
+    //   val_color = vec4(1.0, 0.0, 1.0,  val);
+    // }
 
 	
 
