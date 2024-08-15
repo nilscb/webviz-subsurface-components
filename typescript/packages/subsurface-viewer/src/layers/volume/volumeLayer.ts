@@ -1,3 +1,5 @@
+// Based on this article: https://www.willusher.io/webgl/2019/01/13/volume-rendering-with-webgl/
+
 import type { Color, UpdateParameters } from "@deck.gl/core/typed";
 import { COORDINATE_SYSTEM, Layer, project } from "@deck.gl/core/typed";
 import GL from "@luma.gl/constants";
