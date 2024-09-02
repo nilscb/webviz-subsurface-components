@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import React from "react";
-import DeckGL from "@deck.gl/react/typed";
+import DeckGL from "@deck.gl/react";
 import SubsurfaceViewer from "../../SubsurfaceViewer";
 import VolumeLayer from "../../layers/volume/volumeLayer";
 import AxesLayer from "../../layers/axes/axesLayer";
-import { default3DViews } from "../sharedSettings";
+//import { default3DViews } from "../sharedSettings";
 
 const stories: Meta = {
     component: DeckGL,
