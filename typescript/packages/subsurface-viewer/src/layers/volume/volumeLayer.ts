@@ -1,8 +1,8 @@
 // Based on this article: https://www.willusher.io/webgl/2019/01/13/volume-rendering-with-webgl/
 
-import type { Color, UpdateParameters } from "@deck.gl/core/typed";
-import { COORDINATE_SYSTEM, Layer, project } from "@deck.gl/core/typed";
-import GL from "@luma.gl/constants";
+import type { UpdateParameters } from "@deck.gl/core";  //  Color,
+import { COORDINATE_SYSTEM, Layer, project } from "@deck.gl/core";
+//import GL from "@luma.gl/constants";
 import { Model, Geometry } from "@luma.gl/engine";
 import fragmentShader from "./fragment.glsl";
 import vertexShader from "./vertex.glsl";
@@ -80,20 +80,21 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
     }
 
     updateState({ context }: UpdateParameters<this>): void {
-        const { gl } = context;
-        this.setState(this._getModels(gl));
+        //const { gl } = context;
+        this.setState(this._getModels(context));
     }
 
     //eslint-disable-next-line
-    _getModels(gl: any) {
+    _getModels(context: DeckGLLayerContext) {
         const color = [0.5, 0.5, 0.5, 0.5];
-        const grids = new Model(gl, {
+        const grids = new Model(context.device, {
             id: `${this.props.id}-grids`,
             vs: vertexShader,
             fs: fragmentShader,
             uniforms: { uColor: color },
             geometry: new Geometry({
-                drawMode: GL.TRIANGLES,
+                //drawMode: GL.TRIANGLES,
+                topology: "triangle-list",
                 attributes: {
                     positions: { value: lines, size: 3 },
                     normals: { value: normals, size: 3 },
