@@ -314,7 +314,6 @@ export default class MapLayer<
             this.props.propertiesData ?? this.props.propertiesUrl;
 
         const p = loadMeshAndProperties(meshData, propertiesData);
-
         p.then(([meshData, propertiesData]) => {
             // Using inline web worker for calculating the triangle mesh from
             // loaded input data so not to halt the GUI thread.

@@ -22,6 +22,31 @@ import fs from "./fragment.fs.glsl";
 import fsLineShader from "./fragment_lines.glsl";
 import vs from "./vertex.glsl";
 import vsLineShader from "./vertex_lines.glsl";
+//import triangleVertWGSL from "./triangle.vert.wgsl?raw";  // raw.. vite fixer det uten loader da..
+//import redFragWGSL from "./red.frag.wgsl?raw";
+//import type { WebGPUDevice } from "@luma.gl/webgpu";
+
+const triangleVertWGSL = `
+@vertex
+fn main(
+  @builtin(vertex_index) VertexIndex : u32
+) -> @builtin(position) vec4f {
+  var pos = array<vec2f, 3>(
+    vec2(0.0, 0.5),
+    vec2(-0.5, -0.5),
+    vec2(0.5, -0.5)
+  );
+
+  return vec4f(pos[VertexIndex], 0.0, 1.0);
+}
+s`;
+
+const redFragWGSL = `
+@fragment
+fn main() -> @location(0) vec4f {
+  return vec4(1.0, 0.0, 0.0, 1.0);
+}
+`;
 
 export type Material =
     | {
@@ -70,8 +95,83 @@ export default class PrivateMapLayer extends Layer<PrivateMapLayerProps> {
         return (this.state["isLoaded"] as boolean) ?? false;
     }
 
+    async initWebGpu() {
+        const adapter = await navigator.gpu?.requestAdapter();
+        const device = await adapter?.requestDevice();
+        const context = this.context; //device.context;
+
+        // const webgpuDevice = device as WebGPUDevice;
+        // const gpuDevice: GPUDevice = webgpuDevice.handle;
+
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        console.log("context", context)
+        context.configure({
+            device,
+            format: presentationFormat,
+        });
+
+        //-- pipeline
+        const pipeline = device.createRenderPipeline({
+            label: "Min forste trekant.",
+            layout: "auto",
+            vertex: {
+                module: device.createShaderModule({
+                    code: triangleVertWGSL,
+                }),
+            },
+            fragment: {
+                module: device.createShaderModule({
+                    code: redFragWGSL,
+                }),
+                targets: [
+                    {
+                        format: presentationFormat,
+                    },
+                ],
+            },
+            primitive: {
+                topology: "triangle-list",
+            },
+        });
+
+        const commandEncoder = device.createCommandEncoder();
+        const textureView = context.getCurrentTexture().createView();
+        const renderPassDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [
+                {
+                    view: textureView,
+                    clearValue: [0, 0.3, 0.3, 0], // Clear to transparent
+                    loadOp: "clear",
+                    storeOp: "store",
+                },
+            ],
+        };
+
+        const passEncoder =
+            commandEncoder.beginRenderPass(renderPassDescriptor);
+        passEncoder.setPipeline(pipeline);
+        passEncoder.draw(3);
+        passEncoder.end();
+        commandEncoder.finish();
+
+        // device.queue.submit([commandEncoder.finish()]);
+        this.setState({
+            ...this.state,
+            device,
+            commandEncoder,
+        });
+
+
+    } // end initWebGpu
+
     initializeState(context: DeckGLLayerContext): void {
         const gl = context.device;
+
+        //////////////////
+        //this.initWebGpu();
+
+        //////////////////
+
         const [mesh_model, mesh_lines_model] = this._getModels(gl);
         this.setState({
             models: [mesh_model, mesh_lines_model],
@@ -97,6 +197,10 @@ export default class PrivateMapLayer extends Layer<PrivateMapLayerProps> {
 
     updateState({ context }: UpdateParameters<this>): void {
         this.initializeState(context as DeckGLLayerContext);
+        //////////////////
+        //this.initWebGpu();
+
+        //////////////////
     }
 
     _getModels(device: Device) {
@@ -215,6 +319,14 @@ export default class PrivateMapLayer extends Layer<PrivateMapLayerProps> {
         if (!this.state["models"]) {
             return;
         }
+
+        // XXX ///////////////////////////
+        // const commandEncoder = this.state["commandEncoder"];
+        // if (commandEncoder) {
+        //     console.log("SUBMITTING")
+        //    this.context.device.queue.submit([commandEncoder]);
+        // }
+        ////////////////////////////////////////    
 
         const { uniforms, context } = args;
         const { gl } = context;
