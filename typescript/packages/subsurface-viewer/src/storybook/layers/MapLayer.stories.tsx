@@ -197,7 +197,7 @@ export const MapLayer3dPng: StoryObj<typeof SubsurfaceViewer> = {
     args: {
         id: "map",
         layers: [
-            huginAxes3DLayer,
+            // huginAxes3DLayer,  XXX denne maa fixes forst...
             hugin25mKhNetmapMapLayerPng,
             northArrowLayer,
         ],

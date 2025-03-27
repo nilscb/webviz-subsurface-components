@@ -6,41 +6,45 @@ precision highp float;
 
 // Primitive attributes
 in vec3 positions;
-in float properties;
-in vec3 normals;
-in vec3 colors;
+// in float properties;
+// in vec3 normals;
+// in vec3 colors;
 
 // Outputs to fragment shader
-out vec2 vTexCoord;
-out vec3 cameraPosition;
-out vec3 normals_commonspace;
-out vec4 position_commonspace;
-out vec4 vColor;
-out vec3 worldPos;
-out float property;
-flat out int vertexIndex;
+// out vec2 vTexCoord;
+// out vec3 cameraPosition_;
+// out vec3 normals_commonspace;
+// out vec4 position_commonspace;
+// out vec4 vColor;
+// out vec3 worldPos;
+// out float property;
+// flat out int vertexIndex;
 
-uniform bool ZIncreasingDownwards;
+//uniform bool ZIncreasingDownwards;
+
+//uniform vec3 cameraPosition;
 
 void main(void) {
-   geometry.pickingColor = vec3(1.0, 1.0, 0.0);
-   vertexIndex = gl_VertexID;
+   // geometry.pickingColor = vec3(1.0, 1.0, 0.0);
+   // vertexIndex = gl_VertexID;
 
    vec3 position = positions;
-   position[2] *= ZIncreasingDownwards ? -1.0 : 1.0;
+   position[2] *= -1.0;
 
-   cameraPosition = project_uCameraPosition;
+   // position[2] *= custom.ZIncreasingDownwards ? -1.0 : 1.0;
 
-   worldPos = position;
-   geometry.worldPosition = position;
+   // cameraPosition_ = project.cameraPosition;
 
-   normals_commonspace = normals;
+   // worldPos = position;
+   // geometry.worldPosition = position;
 
-   vColor = vec4(colors.rgb, 1.0);
+   // normals_commonspace = normals;
 
-   property = properties;
+   // vColor = vec4(colors.rgb, 1.0);
 
-   position_commonspace = vec4(project_position(position), 0.0);
+   // property = properties;
+
+   vec4 position_commonspace = vec4(project_position(position), 0.0);
    gl_Position = project_common_position_to_clipspace(position_commonspace);
 
    DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
