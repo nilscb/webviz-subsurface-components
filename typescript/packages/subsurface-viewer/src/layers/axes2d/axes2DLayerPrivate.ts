@@ -1,33 +1,58 @@
 import type {
     Color,
-    LayersList,
+    LayerContext,
     UpdateParameters,
     Viewport,
 } from "@deck.gl/core";
 import {
     COORDINATE_SYSTEM,
-    CompositeLayer,
+    Layer,
     OrthographicViewport,
+    project32,
 } from "@deck.gl/core";
-import { TextLayer } from "@deck.gl/layers";
-import { cloneDeep } from "lodash";
+import { load } from "@loaders.gl/core";
+import { ImageLoader } from "@loaders.gl/images";
+import type { UniformValue } from "@luma.gl/core";
+import { Geometry, Model } from "@luma.gl/engine";
+import { vec4 } from "gl-matrix";
 import type { ExtendedLayerProps, Position3D } from "../utils/layerTools";
-import type { LabelData } from "./axes2DLayerPrivate";
+import fontAtlasPng from "./font-atlas.png";
+import labelFragmentShader from "./label-fragment.glsl";
+import labelVertexShader from "./label-vertex.glsl";
+import lineFragmentShader from "./line-fragment.glsl";
+import lineVertexShader from "./line-vertex.glsl";
 
-import { Axes2DLayerPrivate } from "./axes2DLayerPrivate"; 
-import {
-    TEXT_ANCHOR,
-    ALIGNMENT_BASELINE,
-    ViewSide,
-} from "./axes2DLayerPrivate"; // XXX FLYTT DISSE HIT ...
-import { re } from "mathjs";
+export enum TEXT_ANCHOR {
+    start = 0,
+    middle = 1,
+    end = 2,
+}
 
+export enum ALIGNMENT_BASELINE {
+    top = 1,
+    center = 0,
+    bottom = -1,
+}
 
-// XXX trengs disse?
+export type LabelData = {
+    label: string;
+    pos: Position3D; // tick line start
+    anchor?: TEXT_ANCHOR;
+    alignment?: ALIGNMENT_BASELINE;
+    //font_size: number; KEEP.
+};
+
+export enum ViewSide {
+    Left,
+    Right,
+    Bottom,
+    Top,
+}
+
 const zDepthAxes = 0;
 const tickLineLength = 10;
 
-export interface Axes2DLayerProps extends ExtendedLayerProps {
+export interface Axes2DLayerPrivateProps extends ExtendedLayerProps {
     /** Minimal horizontal pixel size margin. May be larger if this number is to small for the label.
      */
     minimalMarginH: number;
@@ -52,9 +77,9 @@ export interface Axes2DLayerProps extends ExtendedLayerProps {
 }
 
 const defaultProps = {
-    "@@type": "Axes2DLayer",
+    "@@type": "Axes2DLayerPrivate",
     name: "Axes2D",
-    id: "axes2d-layer",
+    id: "axes2d-layer-private",
     visible: true,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     minimalMarginH: 80,
@@ -68,38 +93,61 @@ const defaultProps = {
     labelFontSizePt: 9,
 };
 
-export default class Axes2DLayer extends CompositeLayer<Axes2DLayerProps> {
- 
-    // protected override initializeState(): void {
-    //     const promise = load(fontAtlasPng, ImageLoader, {
-    //         image: { type: "data" }, // Will load as ImageData.
-    //     });
+// FONT ATLAS
+const font_width = 86;
+const yh = 97;
+const fontInfo = {
+    letterHeight: 92,
+    spaceWidth: 0,
+    spacing: -1,
+    textureWidth: 1714,
+    textureHeight: 200,
+    glyphInfos: {
+        A: { x: 0, y: 0, width: font_width },
+        B: { x: font_width, y: 0, width: font_width },
+        C: { x: 2 * font_width, y: 0, width: font_width },
+        D: { x: 3 * font_width, y: 0, width: font_width },
+        E: { x: 4 * font_width, y: 0, width: font_width },
+        F: { x: 5 * font_width, y: 0, width: font_width },
+        G: { x: 6 * font_width, y: 0, width: font_width },
+        H: { x: 7 * font_width, y: 0, width: font_width },
+        I: { x: 8 * font_width, y: 0, width: font_width },
+        J: { x: 9 * font_width, y: 0, width: font_width },
+        K: { x: 10 * font_width, y: 0, width: font_width },
+        L: { x: 11 * font_width, y: 0, width: font_width },
+        M: { x: 12 * font_width, y: 0, width: font_width },
+        N: { x: 13 * font_width, y: 0, width: font_width },
+        O: { x: 14 * font_width, y: 0, width: font_width },
+        P: { x: 15 * font_width, y: 0, width: font_width },
+        Q: { x: 16 * font_width, y: 0, width: font_width },
+        R: { x: 17 * font_width, y: 0, width: font_width },
+        S: { x: 18 * font_width, y: 0, width: font_width },
+        T: { x: 19 * font_width, y: 0, width: font_width },
 
-    //     promise.then((data) => {
-    //         const fontTexture = this.context.device.createTexture({
-    //             width: data.width,
-    //             height: data.height,
-    //             format: "rgb8unorm-webgl",
-    //             data: data as ImageBitmap,
-    //             sampler: {
-    //                 addressModeU: "clamp-to-edge",
-    //                 addressModeV: "clamp-to-edge",
-    //                 minFilter: "linear",
-    //                 magFilter: "linear",
-    //             },
-    //         });
+        U: { x: 0, y: yh, width: font_width },
+        V: { x: font_width, y: yh, width: font_width },
+        W: { x: 2 * font_width, y: yh, width: font_width },
+        X: { x: 3 * font_width, y: yh, width: font_width },
+        Y: { x: 4 * font_width, y: yh, width: font_width },
+        Z: { x: 5 * font_width, y: yh, width: font_width },
+        0: { x: 6 * font_width, y: yh, width: font_width },
+        1: { x: 7 * font_width, y: yh, width: font_width },
+        2: { x: 8 * font_width, y: yh, width: font_width },
+        3: { x: 9 * font_width, y: yh, width: font_width },
+        4: { x: 10 * font_width, y: yh, width: font_width },
+        5: { x: 11 * font_width, y: yh, width: font_width },
+        6: { x: 12 * font_width, y: yh, width: font_width },
+        7: { x: 13 * font_width, y: yh, width: font_width },
+        8: { x: 14 * font_width, y: yh, width: font_width },
+        9: { x: 15 * font_width, y: yh, width: font_width },
+        "+": { x: 16 * font_width, y: yh, width: font_width },
+        "-": { x: 17 * font_width, y: yh, width: font_width },
+        ".": { x: 18 * font_width, y: yh, width: font_width },
+        ",": { x: 19 * font_width, y: yh, width: font_width },
+    },
+};
 
-    //         const { labelModels, lineModel, backgroundModel } = this._getModels(
-    //             fontTexture as unknown as UniformValue
-    //         );
-
-    //         this.setState({
-    //             fontTexture,
-    //             models: [...labelModels, lineModel, backgroundModel],
-    //         });
-    //     });
-    // }
-
+export class Axes2DLayerPrivate extends Layer<Axes2DLayerPrivateProps> { // export default XXX
     shouldUpdateState({
         props,
         oldProps,
@@ -182,10 +230,52 @@ export default class Axes2DLayer extends CompositeLayer<Axes2DLayerProps> {
             pixel2worldHor,
         });
 
+        const fontTexture = this.state["fontTexture"];
+        const {
+            labelModels,
+            lineModel: lineModel,
+            backgroundModel: backgroundModel,
+        } = this._getModels(fontTexture as UniformValue);
+
         this.setState({
             ...this.state,
-            mv: worldMarginV,  // XXX hvorfor er det to av disse
+            mv: worldMarginV,
             mh: worldMarginH,
+        });
+
+        this.setState({
+            ...this.state,
+            models: [...labelModels, lineModel, backgroundModel],
+        });
+    }
+
+    initializeState(): void {
+        const promise = load(fontAtlasPng, ImageLoader, {
+            image: { type: "data" }, // Will load as ImageData.
+        });
+
+        promise.then((data) => {
+            const fontTexture = this.context.device.createTexture({
+                width: data.width,
+                height: data.height,
+                format: "rgb8unorm-webgl",
+                data: data as ImageBitmap,
+                sampler: {
+                    addressModeU: "clamp-to-edge",
+                    addressModeV: "clamp-to-edge",
+                    minFilter: "linear",
+                    magFilter: "linear",
+                },
+            });
+
+            const { labelModels, lineModel, backgroundModel } = this._getModels(
+                fontTexture as unknown as UniformValue
+            );
+
+            this.setState({
+                fontTexture,
+                models: [...labelModels, lineModel, backgroundModel],
+            });
         });
     }
 
@@ -424,22 +514,57 @@ export default class Axes2DLayer extends CompositeLayer<Axes2DLayerProps> {
         return labels;
     }
 
+    draw({
+        context,
+    }: {
+        moduleParameters: unknown;
+        uniforms: unknown;
+        context: LayerContext;
+    }): void {
+        const is_orthographic =
+            this.context.viewport.constructor === OrthographicViewport;
+        if (
+            typeof this.state["fontTexture"] === "undefined" ||
+            !is_orthographic
+        ) {
+            return;
+        }
+
+        const models = this.getModels();
+        const n = models.length;
+
+        if (n < 2) {
+            // Should ever happen.
+            return;
+        }
+
+        // background
+        models[n - 1].draw(context.renderPass);
+
+        // lines
+        models[n - 2].draw(context.renderPass);
+
+        // // labels
+        // for (let i = 0; i < n - 2; i++) {
+        //     models[i].draw(context.renderPass);
+        // }
+
+        return;
+    }
 
     // Make models for background, lines (tick marks and axis) and labels.
-    renameMe(fontTexture: UniformValue)
-    // : {
-    //     labelModels: Model[];
-    //     lineModel: Model;
-    //     backgroundModel: Model;
-    // } 
-    {
-        //const device = this.context.device;
+    _getModels(fontTexture: UniformValue): {
+        labelModels: Model[];
+        lineModel: Model;
+        backgroundModel: Model;
+    } {
+        const device = this.context.device;
 
         // Margins.
         const worldMarginV = this.state["worldMarginV"] as number;
         const worldMarginH = this.state["worldMarginH"] as number;
-        // const pixel2worldVer = this.state["pixel2worldVer"] as number;
-        // const pixel2worldHor = this.state["pixel2worldHor"] as number;
+        const pixel2worldVer = this.state["pixel2worldVer"] as number;
+        const pixel2worldHor = this.state["pixel2worldHor"] as number;
 
         const viewport_bounds_w = this.context.viewport.getBounds(); //bounds in world coordinates.
         const xBoundsMin = viewport_bounds_w[0];
@@ -541,60 +666,209 @@ export default class Axes2DLayer extends CompositeLayer<Axes2DLayerProps> {
             labelData = [...labelData, ...labels];
         }
 
-        return [tick_and_axes_lines, background_lines, labelData];
-    }
+        // Line models. (axis line and tick lines)
+        // Color on axes and text.
+        let lineColor = [0.0, 0.0, 0.0, 1.0];
+        if (typeof this.props.axisColor !== "undefined") {
+            lineColor = this.props.axisColor as number[];
+            if (lineColor.length === 3) {
+                lineColor.push(255);
+            }
+            lineColor = lineColor.map((x) => (x ?? 0) / 255);
+        }
 
-    renderLayers(): LayersList {
-        const [tick_and_axes_lines, background_lines, labelData] =
-            this.renameMe();
+        const lineModel = new Model(device, {
+            id: `${this.props.id}-lines`,
+            vs: lineVertexShader,
+            fs: lineFragmentShader,
+            uniforms: { uColor: lineColor, uClipZ: -1 },
+            geometry: new Geometry({
+                topology: "line-list",
+                attributes: {
+                    positions: new Float32Array(tick_and_axes_lines),
+                },
+                vertexCount: tick_and_axes_lines.length / 3,
+            }),
 
-        const lineLayer = new Axes2DLayerPrivate(
-            this.getSubLayerProps({
-                minimalMarginH: this.props.minimalMarginH,
-                minimalMarginV: this.props.minimalMarginV,
-                formatLabelFunc: this.props.formatLabelFunc,
-                labelColor: this.props.labelColor,
-                labelFontSizePt: this.props.labelFontSizePt,
-                axisColor: this.props.axisColor,
-                backgroundColor: [99, 99, 99, 99], //this.props.backgroundColor,
-                isLeftRuler: this.props.isLeftRuler,
-                isRightRuler: this.props.isRightRuler,
-                isBottomRuler: this.props.isBottomRuler,
-                isTopRuler: this.props.isTopRuler,
-            })
+            modules: [project32],
+            isInstanced: false,
+        });
+
+        //-- Background model --
+        // Color on axes background.
+        let bColor = [0.5, 0.5, 0.5, 1];
+        if (typeof this.props.backgroundColor !== "undefined") {
+            bColor = this.props.backgroundColor as number[];
+            if (bColor.length === 3) {
+                bColor.push(255);
+            }
+            bColor = bColor.map((x) => (x ?? 0) / 255);
+        }
+
+        const backgroundModel = new Model(device, {
+            id: `${this.props.id}-background`,
+            vs: lineVertexShader,
+            fs: lineFragmentShader,
+            uniforms: { uColor: bColor, uClipZ: -0.9 },
+            geometry: new Geometry({
+                topology: "triangle-list",
+                attributes: {
+                    positions: new Float32Array(background_lines),
+                },
+                vertexCount: background_lines.length / 3,
+            }),
+
+            modules: [project32],
+            isInstanced: false,
+        });
+
+        //-- Labels model--
+        const labelModels: Model[] = [];
+
+        const pixelScale = GetPixelsScale(
+            this.props.labelFontSizePt ?? defaultProps.labelFontSizePt
         );
 
-        console.log(labelData)  // array of these:   {label: '', pos: Array(3), anchor: 1, alignment: 1} XXX pos til 2D??
+        for (const item of labelData) {
+            const x = item.pos[0];
+            const y = item.pos[1];
+            const z = item.pos[2];
+            const label = item.label;
+            const anchor = item.anchor ?? TEXT_ANCHOR.start;
+            const alignment_baseline =
+                item.alignment ?? ALIGNMENT_BASELINE.center;
 
-        const text_layer = new TextLayer(
-            this.getSubLayerProps({
-                fontFamily: "Monaco, monospace", //this.props.fontFamily ?? "Monaco, monospace",
-                data: labelData,
-                id: "text-layer",
-                //pickable: true, // false ?? XXX
-                //getPosition: (d: TextLayerData) => this.getLabelPosition(d),
-                getPosition: (d) => d.pos,
-                getText: (d) => d.label, // (d: TextLayerData) => d.label,
-                sizeUnits: "pixels",
-                getSize: 12, // (d: TextLayerData) => d.size,
-                // getAngle: 0,
-                // getTextAnchor: (d: TextLayerData) =>
-                //     this.getAnchor(d, is_orthographic),
-                // getAlignmentBaseline: (d: TextLayerData) =>
-                //     this.getBaseLine(d, is_orthographic),
-                // coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-                // getColor: this.props.labelColor || [0, 0, 0, 255],
-            })
-        );
+            if (label === "") {
+                continue;
+            }
 
-        return [text_layer, lineLayer];
+            const pos_w = vec4.fromValues(x, y, z, 1); // pos world
+
+            const len = label.length;
+            const numVertices = len * 6;
+            const positions = new Float32Array(numVertices * 3);
+            const texcoords = new Float32Array(numVertices * 2);
+            const maxX = fontInfo.textureWidth;
+            const maxY = fontInfo.textureHeight;
+            let offset = 0;
+            let offsetTexture = 0;
+
+            let x1 = 0;
+            if (anchor === TEXT_ANCHOR.end) {
+                x1 = -len;
+            } else if (anchor === TEXT_ANCHOR.middle) {
+                x1 = -len / 2;
+            }
+
+            let y_alignment_offset = 0;
+            if (alignment_baseline === ALIGNMENT_BASELINE.center) {
+                y_alignment_offset = 0.5 * pixelScale;
+            } else if (alignment_baseline === ALIGNMENT_BASELINE.top) {
+                y_alignment_offset = 1 * pixelScale;
+            }
+
+            for (let ii = 0; ii < len; ++ii) {
+                const letter = label[ii];
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                const glyphInfo = fontInfo.glyphInfos[letter];
+                if (glyphInfo) {
+                    // Unit square.
+                    const x2 = x1 + 1;
+                    const u1 = glyphInfo.x / maxX;
+                    const v1 = (glyphInfo.y + fontInfo.letterHeight - 1) / maxY;
+                    const u2 = (glyphInfo.x + glyphInfo.width - 1) / maxX;
+                    const v2 = glyphInfo.y / maxY;
+
+                    const h = 1;
+
+                    // 6 vertices per letter
+                    // t1
+                    /*eslint-disable */
+                    positions[offset + 0] = pos_w[0] + x1 * pixelScale * pixel2worldHor; // Add a distance in view coords and convert to world
+                    positions[offset + 1] = pos_w[1] + (0 * pixelScale - y_alignment_offset) * pixel2worldVer;
+                    positions[offset + 2] = pos_w[2];
+                    texcoords[offsetTexture + 0] = u1;
+                    texcoords[offsetTexture + 1] = v1;
+
+                    positions[offset + 3] = pos_w[0] + x2 * pixelScale * pixel2worldHor;
+                    positions[offset + 4] = pos_w[1] + (0 * pixelScale - y_alignment_offset) * pixel2worldVer;
+                    positions[offset + 5] = pos_w[2];
+                    texcoords[offsetTexture + 2] = u2;
+                    texcoords[offsetTexture + 3] = v1;
+
+                    positions[offset + 6] = pos_w[0] + x1 * pixelScale * pixel2worldHor;
+                    positions[offset + 7] = pos_w[1] + (h * pixelScale - y_alignment_offset) * pixel2worldVer;
+                    positions[offset + 8] = pos_w[2];
+                    texcoords[offsetTexture + 4] = u1;
+                    texcoords[offsetTexture + 5] = v2;
+
+                    // t2
+                    positions[offset + 9] = pos_w[0] + x1 * pixelScale * pixel2worldHor;
+                    positions[offset + 10] = pos_w[1] + (h * pixelScale - y_alignment_offset) * pixel2worldVer;
+                    positions[offset + 11] = pos_w[2];
+                    texcoords[offsetTexture + 6] = u1;
+                    texcoords[offsetTexture + 7] = v2;
+
+                    positions[offset + 12] = pos_w[0] + x2 * pixelScale * pixel2worldHor;
+                    positions[offset + 13] = pos_w[1] + (0 * pixelScale - y_alignment_offset) * pixel2worldVer;
+                    positions[offset + 14] = pos_w[2];
+                    texcoords[offsetTexture + 8] = u2;
+                    texcoords[offsetTexture + 9] = v1;
+
+                    positions[offset + 15] = pos_w[0] + x2 * pixelScale * pixel2worldHor;
+                    positions[offset + 16] = pos_w[1] + (h * pixelScale - y_alignment_offset) * pixel2worldVer;
+                    positions[offset + 17] = pos_w[2];
+                    texcoords[offsetTexture + 10] = u2;
+                    texcoords[offsetTexture + 11] = v2;
+                    /*eslint-ensable */
+
+                    x1 += 1;
+                    offset += 18;
+                    offsetTexture += 12;
+                } else {
+                    // we don't have this character so just advance
+                    x1 += 1;
+                }
+            }
+
+            const model = new Model(device, {
+                id: `${this.props.id}-${label}`,
+                vs: labelVertexShader,
+                fs: labelFragmentShader,
+                uniforms: {
+                    uAxisColor: lineColor,
+                    uBackGroundColor: bColor,
+                },
+                bindings: {
+                    // @ts-ignore
+                    fontTexture,
+                },
+                geometry: new Geometry({
+                    topology: "triangle-list",
+                    attributes: {
+                        positions,
+                        vTexCoord: {
+                            value: texcoords,
+                            size: 2,
+                        },
+                    },
+                    vertexCount: positions.length / 3,
+                }),
+                bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
+                modules: [project32],
+                isInstanced: false,
+            });
+
+            labelModels.push(model);
+        }
+
+        return { labelModels: labelModels, lineModel: lineModel, backgroundModel: backgroundModel };
     }
 }
 
-Axes2DLayer.layerName = "Axes2DLayer";
-Axes2DLayer.defaultProps = defaultProps;
-
-
+Axes2DLayerPrivate.layerName = "Axes2DLayerPrivate";
+Axes2DLayerPrivate.defaultProps = defaultProps;
 
 //-- Local help functions. -------------------------------------------------
 
