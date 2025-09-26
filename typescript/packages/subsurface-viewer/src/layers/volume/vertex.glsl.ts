@@ -15,7 +15,7 @@ void main(void) {
    position_commonspace = project_position(positions);
 
    normals_commonspace = normals;
-   cameraPosition = project_uCameraPosition;
+   cameraPosition = project.cameraPosition;  //project_uCameraPosition;
 
    gl_Position = project_common_position_to_clipspace(vec4(position_commonspace, 0.0));
 }

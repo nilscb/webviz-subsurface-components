@@ -6,8 +6,11 @@ import { COORDINATE_SYSTEM, Layer, project } from "@deck.gl/core";
 import { Model, Geometry } from "@luma.gl/engine";
 import fragmentShader from "./fragment.glsl";
 import vertexShader from "./vertex.glsl";
-import type { DeckGLLayerContext } from "../../components/Map";
 import type { ExtendedLayerProps } from "../utils/layerTools";
+
+import type { DeckGLLayerContext } from "../utils/layerTools";
+
+import type { Device } from "@luma.gl/core";
 
 const s = 1.0; //1.2;
 let lines = new Float32Array([
@@ -71,7 +74,7 @@ const defaultProps = {
 
 export default class VolumeLayer extends Layer<VolumeLayerProps> {
     initializeState(context: DeckGLLayerContext): void {
-        const { gl } = context;
+        const gl = context.device;
         this.setState(this._getModels(gl));
     }
 
@@ -81,13 +84,13 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
 
     updateState({ context }: UpdateParameters<this>): void {
         //const { gl } = context;
-        this.setState(this._getModels(context));
+        this.setState(this._getModels(context.device));
     }
 
     //eslint-disable-next-line
-    _getModels(context: DeckGLLayerContext) {
+    _getModels(device: Device) {   //context: DeckGLLayerContext) {
         const color = [0.5, 0.5, 0.5, 0.5];
-        const grids = new Model(context.device, {
+        const grids = new Model(device, {
             id: `${this.props.id}-grids`,
             vs: vertexShader,
             fs: fragmentShader,
