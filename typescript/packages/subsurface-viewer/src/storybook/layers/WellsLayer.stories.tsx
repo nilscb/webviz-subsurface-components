@@ -45,6 +45,7 @@ import {
 } from "../constant/argTypes";
 import { getRgba } from "../util/color";
 import { View } from "@deck.gl/core";
+import SectionView from "../../views/sectionView";
 
 const stories: Meta = {
     component: SubsurfaceViewer,
@@ -1110,6 +1111,7 @@ export const UnfoldedProjection: StoryObj<typeof SubsurfaceViewer> = {
                     target: [2000, -1500],
                     zoom: -3,
                     layerIds: ["unfolded", "axes"],
+                    viewType: SectionView,
                 },
                 {
                     id: "viewport2",
@@ -1134,7 +1136,7 @@ export const UnfoldedProjection: StoryObj<typeof SubsurfaceViewer> = {
                 /* @ts-expect-error */
                 <View id="viewport1">
                     <h2 style={{ marginLeft: "100px" }}>
-                        Unfolded projection [abscissa, z]
+                        Unfolded projection [distance, z]
                     </h2>
                 </View>
             }
