@@ -45,7 +45,7 @@ import {
 } from "../constant/argTypes";
 import { getRgba } from "../util/color";
 import { View } from "@deck.gl/core";
-import SectionView from "../../views/sectionView";
+import { SectionView } from "../../views/sectionView";
 
 const stories: Meta = {
     component: SubsurfaceViewer,
