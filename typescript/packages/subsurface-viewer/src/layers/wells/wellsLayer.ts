@@ -64,6 +64,7 @@ import {
     checkWells,
     coarsenWells,
     GetBoundingBox,
+    getWell,
     invertPath,
     splineRefine,
 } from "./utils/spline";
@@ -81,6 +82,7 @@ import {
     getWellObjectByName,
     getWellObjectsByName,
 } from "./utils/wells";
+import tubeLayer from "./tubeLayer";
 
 const DEFAULT_DASH = [5, 5] as NumberPair;
 const DEFAULT_SCREEN_DASH = [5, 5] as NumberPair;
@@ -391,6 +393,25 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         // Reduced details when rotating or panning the view if "fastDrawing " is set.
         const fastDrawing = this.props.simplifiedRendering;
+
+        // XXX
+        const wellStrings = getWell(
+            this.props.data as unknown as FeatureCollection
+        );
+
+        // XXX 
+        const wellTube = new tubeLayer(
+            this.getSubLayerProps({
+                id: "tubeLayer",
+                wellStrings,
+                material: {
+                    ambient: 0.35,
+                    diffuse: 0.6,
+                    shininess: 32,
+                    specularColor: [255, 255, 255],
+                },
+            })
+        );
 
         const defaultLayerProps = {
             data,
@@ -788,6 +809,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         const layers = [
             outlineLayer,
+            wellTube,  // XXX
             colorsLayer,
             highlightLayer,
             highlightMultiWellsLayer,

@@ -31,6 +31,10 @@ const defaultProps = {
 };
 
 export default class BoxLayer extends Layer<BoxLayerProps> {
+    get isLoaded(): boolean {
+        return true;
+    }
+
     initializeState(context: DeckGLLayerContext): void {
         this.setState(this._getModels(context.device));
     }

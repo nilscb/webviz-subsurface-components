@@ -66,6 +66,15 @@ type TextLayerData = {
 };
 
 export default class AxesLayer extends CompositeLayer<AxesLayerProps> {
+    get isLoaded(): boolean {
+        // const subLayers = this.getSubLayers();
+        // const isLoaded =
+        //     super.isLoaded &&
+        //     //subLayers.length > 0 && // Note super version differs only in this. It returns true on empty array.
+        //     subLayers.every((layer) => layer.isLoaded);
+        return true; //isLoaded;
+    }
+
     rebuildData(reportBoundingBox: boolean): void {
         const bounds = cloneDeep(this.props.bounds);
 
