@@ -135,5 +135,9 @@
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@loaders.gl/core": "^4.3.4",
+    "@loaders.gl/json": "^4.3.4"
+  }
 }

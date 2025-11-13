@@ -28,6 +28,30 @@ import type {
     PropertyDataType,
     ReportBoundingBoxAction,
 } from "../utils/layerTools";
+
+
+// import { createPropertyData, isDrawingEnabled } from "../utils/layerTools";
+
+// //import { PathStyleExtension } from "@deck.gl/extensions/typed";
+// import { GeoJsonLayer, PathLayer, TextLayer } from "@deck.gl/layers/typed";
+// import type { colorTablesArray } from "@emerson-eps/color-tables/";
+// import { getColors, rgbValues } from "@emerson-eps/color-tables/";
+// import type {
+//     Feature,
+//     FeatureCollection,
+//     GeoJsonProperties,
+//     Geometry,
+//     GeometryCollection,
+//     LineString,
+//     Point,
+// } from "geojson";
+
+// import { distance, dot, subtract } from "mathjs";
+
+// import GL from "@luma.gl/constants";
+// import { interpolateNumberArray } from "d3";
+//import { isEmpty, isEqual } from "lodash";
+
 import {
     createPropertyData,
     getLayersById,
@@ -62,8 +86,14 @@ import {
     coarsenWells,
     invertPath,
     splineRefine,
+    getWell,
 } from "./utils/spline";
 import { getColor, getTrajectory } from "./utils/trajectory";
+//import { cloneDeep } from "lodash";
+import privateLayer from "./privateLayer";
+//import { GeoJSONLoader } from "@loaders.gl/json";
+// import { GeoJSONLoader } from "@loaders.gl/json";
+// import { load } from "@loaders.gl/core";
 
 export enum SubLayerId {
     COLORS = "colors",
@@ -218,6 +248,12 @@ export function getSize(
     return 0;
 }
 
+// async function loadMyData( logData: string) {
+//     const data = await load(logData, GeoJSONLoader);  // , {json: options}
+
+//     return Promise.all([data]);
+// }
+
 export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
     state!: {
         data: WellFeatureCollection | undefined;
@@ -229,6 +265,19 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
     private recomputeDataState() {
         const { data, refine, ZIncreasingDownwards, section } = this.props;
+        // XXX //////////////////////////////////////////////////////////
+        // const p = loadMyData(this.props.logData);
+        // p.then(([logData]) => {
+        //     const well_no = 0;
+        //     const mytest = getLogPath_(
+        //         data.features,
+        //         logData[well_no],
+        //         "BLOCKING",
+        //         [1, 1, 1],   // this.props.lineStyle?.color
+        //     );
+        //     console.log("JIPPI", mytest    )
+        // });
+        //////////////////////////////////////////////////////////
 
         const doRefine = typeof refine === "number" ? refine > 1 : refine;
         const stepCount = typeof refine === "number" ? refine : 5;
@@ -258,15 +307,17 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
                 sectionData = abscissaTransform(transformedData);
             }
         }
-
         // Mutate data to remove duplicates
         checkWells(sectionData);
+        // XXX  NB Gaar raskere med en coarse versjon... NB DETTE FJERNET LOG DATANE SÅ BE CAREFULLlll
+        //data = cloneDeep(coarseData)
+        //data = coarseData;
 
         // Conditionally apply spline interpolation to refine the well path.
-        if (doRefine) {
-            transformedData = splineRefine(transformedData, stepCount);
-            sectionData = splineRefine(sectionData, stepCount);
-        }
+        // if (doRefine) {
+        //     transformedData = splineRefine(transformedData, stepCount);
+        //     sectionData = splineRefine(sectionData, stepCount);
+        // }
 
         this.setState({ data: transformedData, sectionData });
     }
@@ -453,6 +504,23 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         // Reduced details when rotating or panning the view if "fastDrawing " is set.
         const fastDrawing = this.props.simplifiedRendering;
 
+        const wellStrings = getWell(
+            this.props.data as unknown as FeatureCollection
+        );
+
+        const myWells = new privateLayer(
+            this.getSubLayerProps({
+                id: "privateLayer",
+                wellStrings,
+                material: {
+                    ambient: 0.35,
+                    diffuse: 0.6,
+                    shininess: 32,
+                    specularColor: [255, 255, 255],
+                },
+            })
+        );
+
         const defaultLayerProps = {
             data,
             pickable: false,
@@ -561,6 +629,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
                         this.props.lineStyle?.color
                     ),
                 getColor: (d: LogCurveDataType): Color[] =>
+                    // XXX [0, 255, 0],
                     getLogColor(
                         d,
                         this.props.logrunName,
@@ -657,6 +726,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         const layers = [
             outlineLayer,
+            myWells,
             logLayer,
             colorsLayer,
             highlightLayer,
@@ -927,6 +997,37 @@ function getPositionByMD(well_xyz: Position[], well_mds: number[], md: number) {
         well_xyz[l_idx],
         well_xyz[h_idx]
     )(md_normalized);
+}
+
+
+function getLogPath_(
+    wells_data: Feature[],
+    d: LogCurveDataType,
+    logrun_name: string,
+    trajectory_line_color?: ColorAccessor
+): Position[] {
+    const well_object = getWellObjectByName(wells_data, d.header.well);
+    if (!well_object) return [];
+
+    const well_xyz = getTrajectory(well_object, trajectory_line_color);
+    const well_mds = getWellMds(well_object);
+
+    if (
+        well_xyz == undefined ||
+        well_mds == undefined ||
+        well_xyz.length == 0 ||
+        well_mds.length == 0
+    )
+        return [];
+
+    const log_xyz: Position[] = [];
+    const log_mds = getLogMd(d, logrun_name);
+    log_mds.forEach((md) => {
+        const xyz = getPositionByMD(well_xyz, well_mds, md); // XXX
+        log_xyz.push(xyz);
+    });
+
+    return log_xyz;
 }
 
 function getLogPath(
