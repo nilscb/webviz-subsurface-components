@@ -25,6 +25,30 @@ import type {
     PropertyDataType,
     ReportBoundingBoxAction,
 } from "../utils/layerTools";
+
+
+// import { createPropertyData, isDrawingEnabled } from "../utils/layerTools";
+
+// //import { PathStyleExtension } from "@deck.gl/extensions/typed";
+// import { GeoJsonLayer, PathLayer, TextLayer } from "@deck.gl/layers/typed";
+// import type { colorTablesArray } from "@emerson-eps/color-tables/";
+// import { getColors, rgbValues } from "@emerson-eps/color-tables/";
+// import type {
+//     Feature,
+//     FeatureCollection,
+//     GeoJsonProperties,
+//     Geometry,
+//     GeometryCollection,
+//     LineString,
+//     Point,
+// } from "geojson";
+
+// import { distance, dot, subtract } from "mathjs";
+
+// import GL from "@luma.gl/constants";
+// import { interpolateNumberArray } from "d3";
+//import { isEmpty, isEqual } from "lodash";
+
 import {
     createPropertyData,
     getFromAccessor,
@@ -54,7 +78,9 @@ import {
     coarsenWells,
     invertPath,
     splineRefine,
+    getWell,
 } from "./utils/spline";
+
 import { getColor, getMd, getTrajectory, getTvd } from "./utils/trajectory";
 import type { LogCurveLayerProps } from "./layers/logCurveLayer";
 import { LogCurveLayer } from "./layers/logCurveLayer";
@@ -72,6 +98,12 @@ import { getSize, LINE, POINT, DEFAULT_LINE_WIDTH } from "./utils/features";
 import { scaleArray } from "../../utils/arrays";
 
 const DEFAULT_DASH = [5, 5] as NumberPair;
+
+//import { cloneDeep } from "lodash";
+import tubeLayer from "./tubeLayer";
+//import { GeoJSONLoader } from "@loaders.gl/json";
+// import { GeoJSONLoader } from "@loaders.gl/json";
+// import { load } from "@loaders.gl/core";
 
 export enum SubLayerId {
     COLORS = "colors",
@@ -199,6 +231,12 @@ const defaultProps = {
     wellNameSize: 10,
 };
 
+// async function loadMyData( logData: string) {
+//     const data = await load(logData, GeoJSONLoader);  // , {json: options}
+
+//     return Promise.all([data]);
+// }
+
 export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
     state!: {
         data: WellFeatureCollection | undefined;
@@ -210,6 +248,19 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
     private recomputeDataState() {
         const { data, refine, ZIncreasingDownwards, section } = this.props;
+        // XXX //////////////////////////////////////////////////////////
+        // const p = loadMyData(this.props.logData);
+        // p.then(([logData]) => {
+        //     const well_no = 0;
+        //     const mytest = getLogPath_(
+        //         data.features,
+        //         logData[well_no],
+        //         "BLOCKING",
+        //         [1, 1, 1],   // this.props.lineStyle?.color
+        //     );
+        //     console.log("JIPPI", mytest    )
+        // });
+        //////////////////////////////////////////////////////////
 
         const doRefine = typeof refine === "number" ? refine > 1 : refine;
         const stepCount = typeof refine === "number" ? refine : 5;
@@ -239,15 +290,17 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
                 sectionData = abscissaTransform(transformedData);
             }
         }
-
         // Mutate data to remove duplicates
         checkWells(sectionData);
+        // XXX  NB Gaar raskere med en coarse versjon... NB DETTE FJERNET LOG DATANE SÅ BE CAREFULLlll
+        //data = cloneDeep(coarseData)
+        //data = coarseData;
 
         // Conditionally apply spline interpolation to refine the well path.
-        if (doRefine) {
-            transformedData = splineRefine(transformedData, stepCount);
-            sectionData = splineRefine(sectionData, stepCount);
-        }
+        // if (doRefine) {
+        //     transformedData = splineRefine(transformedData, stepCount);
+        //     sectionData = splineRefine(sectionData, stepCount);
+        // }
 
         this.setState({ data: transformedData, sectionData });
     }
@@ -439,6 +492,25 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
         // Reduced details when rotating or panning the view if "fastDrawing " is set.
         const fastDrawing = this.props.simplifiedRendering;
 
+        // XXX
+        const wellStrings = getWell(
+            this.props.data as unknown as FeatureCollection
+        );
+
+        // XXX 
+        const wellTube = new tubeLayer(
+            this.getSubLayerProps({
+                id: "tubeLayer",
+                wellStrings,
+                material: {
+                    ambient: 0.35,
+                    diffuse: 0.6,
+                    shininess: 32,
+                    specularColor: [255, 255, 255],
+                },
+            })
+        );
+
         const defaultLayerProps = {
             data,
             pickable: false,
@@ -547,7 +619,6 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
                     logRun: this.props.logrunName,
                     curveName: this.props.logName,
                 },
-
                 colorScale: {
                     name: this.props.logColor,
                     isLogarithmic: this.props.isLog,
@@ -556,7 +627,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
                     mappingFunction: this.props.colorMappingFunction,
                 },
 
-                getWellMds: getWellMds,
+                getWellMds: getWellMds, // XXX kan kanskje brukes..?
                 getTrajectoryPath: (d: WellFeature) =>
                     getTrajectory(d, this.props.lineStyle?.color),
 
@@ -575,6 +646,8 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         const layers = [
             outlineLayer,
+                     wellTube,  // XXX
+
             colorsLayer,
             highlightLayer,
             highlightMultiWellsLayer,
