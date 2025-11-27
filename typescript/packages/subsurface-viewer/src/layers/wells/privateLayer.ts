@@ -117,17 +117,16 @@ function getRadii() {
     return 10 + Math.random() * 30;
 }
 
-function getCircle(p1: Vector3, p2: Vector3, circle: Array<number>, radii): void {
-    const npoints = circle.length / 3; // no pints around the circle
+function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>, radii): void {
+    const npoints = circle.length / 3; // number of  points around the circle
 
-    // Construct orthonormal coordinate system on p1 as nx, ny, nz vectors
-    const nz = p2.clone().subtract(p1).normalize(); // XXX enheltsvector fra p1 til p2
+    const v1 = p1.clone().subtract(p2).normalize();
+    const v2 = p3.clone().subtract(p2).normalize();
 
-    // ny initially a vector not parallell to nz. see: https://math.stackexchange.com/questions/3122010/how-to-deterministically-pick-a-vector-that-is-guaranteed-to-be-non-parallel-to
-    const isZUp = nz[2] < -0.5 || nz[2] > 0.5;
-    const ny = isZUp ? new Vector3(0, 1, 0) : new Vector3(-nz[2], nz[0], nz[2]);
-    ny.cross(nz).normalize(); // ny er naa perpendicular til nz og normalisert...
-    const nx = ny.clone().cross(nz); // nx, ny nz er naa orthonormale
+    // Construct orthonormal coordinate system blabla ...
+    const nx = v1.clone().add(v2).normalize(); // bisector vector
+    const ny = v1.clone().cross(v2);
+    const nz = nx.clone().cross(ny);
 
 
     // Disse to kan holdes konstant over sirkelen
@@ -158,7 +157,7 @@ function getCircle(p1: Vector3, p2: Vector3, circle: Array<number>, radii): void
                                 PAPinv[3] * v0[0] + PAPinv[4] * v0[1] + PAPinv[5] * v0[2],    // eslint-disable-line
                                 PAPinv[6] * v0[0] + PAPinv[7] * v0[1] + PAPinv[8] * v0[2] ]); // eslint-disable-line
         v.scale(radii); // Radius
-        v.add(p1);
+        v.add(p2);
 
         circle[k * 3 + 0] = v[0];
         circle[k * 3 + 1] = v[1];
@@ -255,76 +254,88 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
 
             const nvertexs = w.length / 3;
 
+                        console.log("nvertexs", nvertexs);
+
             // const radii = 30 + Math.random() * 30;
 
             // XXX bare continue her om det ikke er nok punkter..!!!
             const col = colors_array[well_no % colors_array.length];
 
             // Make a circle of points around point.
-            const p1 = new Vector3([w[0], w[1], w[2]]);
-            const p2 = new Vector3([w[3], w[4], w[5]]);
-            const p3 = new Vector3([w[6], w[7], w[8]]);
+            // const p1 = new Vector3([w[0], w[1], w[2]]);
+            // const p2 = new Vector3([w[3], w[4], w[5]]);
+            // const p3 = new Vector3([w[6], w[7], w[8]]);
             const radii = getRadii() + well_no * 1;
-            getCircle(p1, p2, current_circle, radii);
-            getCircle(p2, p3, next_circle, radii);
 
-            for (let i = 1; i < nvertexs - 2; i++) { // Note: start and end index.
-            //for (let i = 1; i < 3; i++) {
+            //getCircle(p1, p2, p3, current_circle, radii);
+            //models_circles.push(this.makeCircleModel(context, current_circle));
+            //getCircle(p2, p3, next_circle, radii);
 
-                for (let j = 0; j < nn - 1; j++) {
-                    const x1 = current_circle[j * 3 + 0];
-                    const y1 = current_circle[j * 3 + 1];
-                    const z1 = current_circle[j * 3 + 2];
+            const n = nvertexs; //w.length; // nvertexs ??
+            for (let i = 0; i < n - 2; i++) { // Note: start and end index  
+                //console.log("i", i);  //her er det noe galt får bare to ringer
 
-                    const x2 = current_circle[(j + 1) * 3 + 0];
-                    const y2 = current_circle[(j + 1) * 3 + 1];
-                    const z2 = current_circle[(j + 1) * 3 + 2];
-
-                    const x3 = next_circle[j * 3 + 0];
-                    const y3 = next_circle[j * 3 + 1];
-                    const z3 = next_circle[j * 3 + 2];
-
-                    const x4 = next_circle[(j + 1) * 3 + 0];
-                    const y4 = next_circle[(j + 1) * 3 + 1];
-                    const z4 = next_circle[(j + 1) * 3 + 2];
-
-                    // t1
-                    vertexs.push(x1, y1, z1);
-                    colors.push(...col);
-                    myMds.push(0);
-
-                    vertexs.push(x2, y2, z2);
-                    colors.push(...col);
-                    myMds.push(0);
-
-                    vertexs.push(x3, y3, z3);
-                    colors.push(...col);
-                    myMds.push(1);
-
-                    // t2
-                    vertexs.push(x3, y3, z3);
-                    colors.push(...col);
-                    myMds.push(1);
-
-                    vertexs.push(x2, y2, z2);
-                    colors.push(...col);
-                    myMds.push(0);
-
-                    vertexs.push(x4, y4, z4);
-                    colors.push(...col);
-                    myMds.push(1);
-                }
-
-                const p1 = new Vector3([w[i * 3 + 0], w[i * 3 + 1], w[i * 3 + 2]]);
-                const p2 = new Vector3([w[(i + 1) * 3 + 0], w[(i + 1) * 3 + 1], w[(i + 1) * 3 + 2]]);
-                const p3 = new Vector3([w[(i + 2) * 3 + 0], w[(i + 2) * 3 + 1], w[(i + 2) * 3 + 2]]);
+                const p1 = new Vector3([w[(i + 0) * 3 + 0], w[(i + 0) * 3 + 1], w[(i + 0) * 3 + 2]]); // eslint-disable-line
+                const p2 = new Vector3([w[(i + 1) * 3 + 0], w[(i + 1) * 3 + 1], w[(i + 1) * 3 + 2]]); // eslint-disable-line
+                const p3 = new Vector3([w[(i + 2) * 3 + 0], w[(i + 2) * 3 + 1], w[(i + 2) * 3 + 2]]); // eslint-disable-line
 
 
+                getCircle(p1, p2, p3, current_circle, radii);
                 models_circles.push(this.makeCircleModel(context, current_circle));
 
-                
-                getCircle(p1, p2, current_circle, radii);
-                getCircle(p2, p3, next_circle, radii);
+                // for (let j = 0; j < nn - 1; j++) {
+                //     const x1 = current_circle[j * 3 + 0];
+                //     const y1 = current_circle[j * 3 + 1];
+                //     const z1 = current_circle[j * 3 + 2];
+
+                //     const x2 = current_circle[(j + 1) * 3 + 0];
+                //     const y2 = current_circle[(j + 1) * 3 + 1];
+                //     const z2 = current_circle[(j + 1) * 3 + 2];
+
+                //     const x3 = next_circle[j * 3 + 0];
+                //     const y3 = next_circle[j * 3 + 1];
+                //     const z3 = next_circle[j * 3 + 2];
+
+                //     const x4 = next_circle[(j + 1) * 3 + 0];
+                //     const y4 = next_circle[(j + 1) * 3 + 1];
+                //     const z4 = next_circle[(j + 1) * 3 + 2];
+
+                //     // t1
+                //     vertexs.push(x1, y1, z1);
+                //     colors.push(...col);
+                //     myMds.push(0);
+
+                //     vertexs.push(x2, y2, z2);
+                //     colors.push(...col);
+                //     myMds.push(0);
+
+                //     vertexs.push(x3, y3, z3);
+                //     colors.push(...col);
+                //     myMds.push(1);
+
+                //     // t2
+                //     vertexs.push(x3, y3, z3);
+                //     colors.push(...col);
+                //     myMds.push(1);
+
+                //     vertexs.push(x2, y2, z2);
+                //     colors.push(...col);
+                //     myMds.push(0);
+
+                //     vertexs.push(x4, y4, z4);
+                //     colors.push(...col);
+                //     myMds.push(1);
+                // }
+
+                // const p1 = new Vector3([w[i * 3 + 0], w[i * 3 + 1], w[i * 3 + 2]]);
+                // const p2 = new Vector3([w[(i + 1) * 3 + 0], w[(i + 1) * 3 + 1], w[(i + 1) * 3 + 2]]);
+                // const p3 = new Vector3([w[(i + 2) * 3 + 0], w[(i + 2) * 3 + 1], w[(i + 2) * 3 + 2]]);
+
+
+                // getCircle(p1, p2, p3, current_circle, radii);
+                // models_circles.push(this.makeCircleModel(context, current_circle));
+
+                //getCircle(p2, p3, next_circle, radii);
             }
         }
 
@@ -362,10 +373,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
         uniforms: UniformValue;
         context: LayerContext;
     }): void {
-        // if (!this.state["model"]) {
-        //     console.log("WHAT");
-        //     return;
-        // }
+        //const { gl } = args.context;
 
         const models = this.state["models"] as Model[];
 

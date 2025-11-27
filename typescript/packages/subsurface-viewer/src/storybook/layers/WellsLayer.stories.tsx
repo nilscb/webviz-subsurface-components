@@ -513,8 +513,6 @@ const testWell: FeatureCollection = {
                         type: "LineString",
                         coordinates: [
                             [0, 0, 0],
-                            [0, 0, 1],
-                            [0, 0, 2],
                             [0, 50, -50],
                             [0, 0, -100],
                             [99, 99, -150],
