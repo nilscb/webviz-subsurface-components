@@ -9,7 +9,6 @@ in vec3 colors;
 
 in float myMds;
 out float myMds_;
-
 out vec3 vColor;
 
 out vec3 cameraPosition;

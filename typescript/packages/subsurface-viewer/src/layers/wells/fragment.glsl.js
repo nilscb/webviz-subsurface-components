@@ -34,14 +34,14 @@ void main(void) {
   vec3 normal = normalize(cross(dFdx(position_commonspace), dFdy(position_commonspace)));
 
   //vec3 color = vec3(myMds_, myMds_, myMds_);
-  int index = int(myMds_ * 255.0);
+  //int index = int(myMds_ * 255.0);
   //int index = int(rnd * 255.0);
   //vec3 color = myColors[index];
   vec3 color = vColor;
     
 
   vec3 lightColor = lighting_getLightColor(color, cameraPosition, position_commonspace, normal);
-  fragColor = vec4(lightColor, 0.5);
+  fragColor = vec4(lightColor, 1.0);
 
   //fragColor = vec4(vColor, 1.0);
   //fragColor = vec4(color, 1.0);

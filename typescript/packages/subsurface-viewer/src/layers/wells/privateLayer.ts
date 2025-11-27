@@ -88,14 +88,6 @@ function getImageData(colorTables: colorTablesArray) {
     return data ? data : [0, 0, 0];
 }
 
-
-// // const DEFAULT_TEXTURE_PARAMETERS = {
-// //     [GL.TEXTURE_MIN_FILTER]: GL.LINEAR_MIPMAP_LINEAR,
-// //     [GL.TEXTURE_MAG_FILTER]: GL.LINEAR,
-// //     [GL.TEXTURE_WRAP_S]: GL.CLAMP_TO_EDGE,
-// //     [GL.TEXTURE_WRAP_T]: GL.CLAMP_TO_EDGE,
-// // };
-
 export interface PrivateLayerProps extends ExtendedLayerProps {
     wellStrings: number[][];
     depthTest: boolean;
@@ -112,7 +104,7 @@ const defaultProps = {
 // // }
 
 function getRadii() {
-    return 50;
+    return 10;
     return 15 + Math.random() * 30;
     return 10 + Math.random() * 30;
 }
@@ -125,7 +117,7 @@ function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>,
 
     // Construct orthonormal coordinate system blabla ...
     const nx = v1.clone().add(v2).normalize(); // bisector vector
-    const ny = v1.clone().cross(v2);
+    const ny = v1.clone().cross(v2).normalize();
     const nz = nx.clone().cross(ny);
 
 
@@ -134,10 +126,10 @@ function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>,
                            nx[1], ny[1], nz[1],    // eslint-disable-line
                            nx[2], ny[2], nz[2] ]); // eslint-disable-line
     P.transpose(); //  XXX lag kommentar her.. noe med row major for,m eller noe.. den lagres anderledes enn jeg oppga den over..
-    const Pinv = P.clone().invert();
+    const Pinv = P.clone().invert(); // XX trengs clone her?
 
     // Make a circle of points around p1.
-    const da = 360 / (npoints - 1);
+    const da = 360 / (npoints);
     const v0 = nx.clone(); //.scale(200); // Det er denne som skal roteres
 
     for (let k = 0; k < npoints; k++) {
@@ -177,7 +169,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
             ...args,
             lighting: {
                 ...args["lighting"],
-                enabled: true, //this.props.enableLighting,
+                enabled: false, //true, //this.props.enableLighting,
             },
         });
     }
@@ -197,10 +189,11 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
     }
 
     makeCircleModel(context: DeckGLLayerContext, points: number[]): Model {
-        const vertexs: number[] = []
+        const vertexs: number[] = [];
         for (let i = 0; i < points.length; i++) {
             vertexs.push(points[i]);
         }
+        vertexs.push(points[0], points[1], points[2]); // close the circle
 
         const model = new Model(context.device, {
             id: "circle model",
@@ -221,17 +214,9 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
 
     //eslint-disable-next-line
     _getModels(context: DeckGLLayerContext, wellStrings: number[][]) {
-        const models_circles = [];
-
         const myColors = getImageData(
             (this.context as DeckGLLayerContext).userData.colorTables
         );
-//         //shuffle(myColors); // XXX
-//         //console.log("myColors", myColors)
-
-        const vertexs: number[] = [];
-        const colors: number[] = [];
-        const myMds: number[] = [];
 
         const c1 = [1, 0, 0];
         const c2 = [0, 1, 0];
@@ -244,126 +229,172 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
 
         const no_wells = wellStrings.length;
 
-        const nn = 7; // number of points around circle
-        const current_circle = Array<number>(nn * 3);
-        const next_circle = Array<number>(nn * 3);
+        const no_circle_pts = 20; // number of points around circle
+        const current_circle = Array<number>(no_circle_pts * 3);
 
-        // Triangles
-        for (let well_no = 0; well_no < no_wells; well_no++) {  // no_wells 6
+        // Loop wells.
+        const models_wells = [];
+        const models_circles = [];
+        const min_indexes: number[] = [];
+        for (let well_no = 0; well_no < 1/*no_wells*/; well_no++) {  // no_wells 6
             const w = wellStrings[well_no].flat();
 
             const nvertexs = w.length / 3;
 
-                        console.log("nvertexs", nvertexs);
+            let col = colors_array[well_no % colors_array.length];
+            const radii = 50; //getRadii() + well_no * 1;  // 30 + Math.random() * 30;
 
-            // const radii = 30 + Math.random() * 30;
+            const vertexs = new Float32Array(nvertexs * no_circle_pts * 3);
+            const indexs: number[] = []; // XX preallocate??
+            const colors: number[] = [];
+            const myMds: number[] = [];
 
-            // XXX bare continue her om det ikke er nok punkter..!!!
-            const col = colors_array[well_no % colors_array.length];
-
-            // Make a circle of points around point.
-            // const p1 = new Vector3([w[0], w[1], w[2]]);
-            // const p2 = new Vector3([w[3], w[4], w[5]]);
-            // const p3 = new Vector3([w[6], w[7], w[8]]);
-            const radii = getRadii() + well_no * 1;
-
-            //getCircle(p1, p2, p3, current_circle, radii);
-            //models_circles.push(this.makeCircleModel(context, current_circle));
-            //getCircle(p2, p3, next_circle, radii);
-
-            const n = nvertexs; //w.length; // nvertexs ??
-            for (let i = 0; i < n - 2; i++) { // Note: start and end index  
-                //console.log("i", i);  //her er det noe galt får bare to ringer
-
+            // Create circles along the well path.
+            const n = nvertexs;
+            let ncircles = 0;
+            for (let i = 0; i < n - 2; i++) {
                 const p1 = new Vector3([w[(i + 0) * 3 + 0], w[(i + 0) * 3 + 1], w[(i + 0) * 3 + 2]]); // eslint-disable-line
                 const p2 = new Vector3([w[(i + 1) * 3 + 0], w[(i + 1) * 3 + 1], w[(i + 1) * 3 + 2]]); // eslint-disable-line
                 const p3 = new Vector3([w[(i + 2) * 3 + 0], w[(i + 2) * 3 + 1], w[(i + 2) * 3 + 2]]); // eslint-disable-line
 
-
                 getCircle(p1, p2, p3, current_circle, radii);
+                ncircles++;
+                let min_x = 9999999;
+                let min_index = -1;
+                for (let c = 0; c < no_circle_pts; c++) {
+                    const idx = (i * no_circle_pts + c) * 3;
+                    const x = current_circle[c * 3 + 0];
+                    vertexs[idx + 0] = x;
+                    vertexs[idx + 1] = current_circle[c * 3 + 1];
+                    vertexs[idx + 2] = current_circle[c * 3 + 2];
+
+                    col = colors_array[Math.floor(Math.random() * colors_array.length)];
+                    colors.push(...col); // cols og mds må være pr vertex!!
+                    myMds.push( c % 2);
+
+
+                    if (x < min_x) {
+                        min_x = x;
+                        min_index = c;
+                    }
+                }
+                min_indexes.push(min_index);
                 models_circles.push(this.makeCircleModel(context, current_circle));
-
-                // for (let j = 0; j < nn - 1; j++) {
-                //     const x1 = current_circle[j * 3 + 0];
-                //     const y1 = current_circle[j * 3 + 1];
-                //     const z1 = current_circle[j * 3 + 2];
-
-                //     const x2 = current_circle[(j + 1) * 3 + 0];
-                //     const y2 = current_circle[(j + 1) * 3 + 1];
-                //     const z2 = current_circle[(j + 1) * 3 + 2];
-
-                //     const x3 = next_circle[j * 3 + 0];
-                //     const y3 = next_circle[j * 3 + 1];
-                //     const z3 = next_circle[j * 3 + 2];
-
-                //     const x4 = next_circle[(j + 1) * 3 + 0];
-                //     const y4 = next_circle[(j + 1) * 3 + 1];
-                //     const z4 = next_circle[(j + 1) * 3 + 2];
-
-                //     // t1
-                //     vertexs.push(x1, y1, z1);
-                //     colors.push(...col);
-                //     myMds.push(0);
-
-                //     vertexs.push(x2, y2, z2);
-                //     colors.push(...col);
-                //     myMds.push(0);
-
-                //     vertexs.push(x3, y3, z3);
-                //     colors.push(...col);
-                //     myMds.push(1);
-
-                //     // t2
-                //     vertexs.push(x3, y3, z3);
-                //     colors.push(...col);
-                //     myMds.push(1);
-
-                //     vertexs.push(x2, y2, z2);
-                //     colors.push(...col);
-                //     myMds.push(0);
-
-                //     vertexs.push(x4, y4, z4);
-                //     colors.push(...col);
-                //     myMds.push(1);
-                // }
-
-                // const p1 = new Vector3([w[i * 3 + 0], w[i * 3 + 1], w[i * 3 + 2]]);
-                // const p2 = new Vector3([w[(i + 1) * 3 + 0], w[(i + 1) * 3 + 1], w[(i + 1) * 3 + 2]]);
-                // const p3 = new Vector3([w[(i + 2) * 3 + 0], w[(i + 2) * 3 + 1], w[(i + 2) * 3 + 2]]);
-
-
-                // getCircle(p1, p2, p3, current_circle, radii);
-                // models_circles.push(this.makeCircleModel(context, current_circle));
-
-                //getCircle(p2, p3, next_circle, radii);
             }
-        }
 
-        // XXX note bruk heller indeks
-        const model = new Model(context.device, {
-            id: "tube model",
-            vs: vertexShader,
-            fs: fragmentShader,
-            geometry: new Geometry({
-                topology: "triangle-list",
-                attributes: {
-                    positions: { value: new Float32Array(vertexs), size: 3 },  // XXX trenger vel ikke kopi på disse...
-                    colors: { value: new Float32Array(colors), size: 3 },
-                    myMds: { value: new Float32Array(myMds), size: 1 },
-                },
-                vertexCount: vertexs.length / 3,
-            }),
+            // Connect circles with triangles.
+            for (let i = 0; i < ncircles - 1; i++) { // XXX -1 skal vel fjernes her når jeg fikser sirkler over hele
+                const upper_index = min_indexes[i]; // index of point with smallest x in upper circle
+                const lower_index = min_indexes[i + 1]; // index of point with smallest x in lower circle
 
-            modules: [project, picking, lighting, phongMaterial],
-            //isInstanced: false, // This only works when set to false.
-        });
-        model.setUniforms({
-            //myColors: { value: new Float32Array(myColors), size: 3 },
-            myColors,
-        });
+                //console.log("upper_index, lower_index: ", upper_index, lower_index);
 
-        return [model, ...models_circles];
-        //return { model };
+                for (let j = 0; j <  no_circle_pts; j++) {
+                    const i_upper = (upper_index + j) % no_circle_pts;
+                    const i_lower = (lower_index + j) % no_circle_pts;
+
+                    //console.log("i_upper, i_lower: ", i_upper, i_lower);
+
+                    let p1, p2, p3, p4;
+
+                    // upper circle indexes
+                    p1 = i * no_circle_pts + i_upper;
+                    p2 = (i_upper < no_circle_pts - 1 ? p1 + 1 : i * no_circle_pts);
+                    console.log("p1, p2: ", p1, p2);
+
+                    // lower circle indexes
+                    p3 = (i + 1) * no_circle_pts + i_lower;
+                    p4 = (i_lower < no_circle_pts - 1 ? p3 + 1 : (i + 1) * no_circle_pts);
+                    //console.log("p3 p4: ", i_lower, p3, p4);
+
+                    // t1
+                    indexs.push(p1);
+                    indexs.push(p2);
+                    indexs.push(p3);
+
+                    // t2
+                    indexs.push(p3);
+                    indexs.push(p2);
+                    indexs.push(p4);
+
+                    // if (i_upper === no_circle_pts - 2) {
+
+                    // if (j === no_circle_pts - 2) { heller jekke på i_upper etc her vel
+                    //     // const i_upper = (upper_index + (no_circle_pts - 1)) % (no_circle_pts - 1);
+                    //     // const i_lower = (lower_index + (no_circle_pts - 1)) % (no_circle_pts - 1);
+
+                    //     // // upper circle indexes
+                    //     // p1 = i * no_circle_pts + i_upper;
+                    //     // p2 = i * no_circle_pts + upper_index;
+
+                    //     // // lower circle indexes
+                    //     // p3 = (i + 1) * no_circle_pts + i_lower;
+                    //     // p4 = (i + 1) * no_circle_pts + lower_index;
+
+                    //     // // t1
+                    //     // indexs.push(p1);
+                    //     // indexs.push(p2);
+                    //     // indexs.push(p3);
+
+                    //     // // t2
+                    //     // indexs.push(p3);
+                    //     // indexs.push(p2);
+                    //     // indexs.push(p4);
+
+                    // } else {
+                    //     // upper circle indexes
+                    //     p1 = i * no_circle_pts + i_upper;
+                    //     p2 = i * no_circle_pts + (i_upper + 1);
+
+                    //     //console.log("p1, p2: ", p1, p2);
+
+                    //     // lower circle indexes
+                    //     p3 = (i + 1) * no_circle_pts + i_lower;
+                    //     p4 = (i + 1) * no_circle_pts + (i_lower + 1);
+
+                    //     // t1
+                    //     indexs.push(p1);
+                    //     indexs.push(p2);
+                    //     indexs.push(p3);
+
+                    //     // t2
+                    //     indexs.push(p3);
+                    //     indexs.push(p2);
+                    //     indexs.push(p4);
+                    // }
+                }
+            }
+
+        // Create Model for the well tube.
+        const model_well = new Model(context.device, {
+                id: "tube model",
+                vs: vertexShader,
+                fs: fragmentShader,
+                geometry: new Geometry({
+                    topology: "triangle-list",
+                    attributes: {
+                        positions: { value: new Float32Array(vertexs), size: 3 },  // XXX trenger vel ikke kopi på disse...
+                        colors: { value: new Float32Array(colors), size: 3 }, // XXX må være like mange som vertexes??
+                        myMds: { value: new Float32Array(myMds), size: 1 },
+                    },
+                    indices: { value: new Uint32Array(indexs), size: 1 },
+                    vertexCount: indexs.length, //vertexs.length / 3,
+                }),
+
+                modules: [project, picking, lighting, phongMaterial],
+                //isInstanced: false, // This only works when set to false.
+            });
+            model_well.setUniforms({
+                //myColors: { value: new Float32Array(myColors), size: 3 },
+                myColors,
+            });
+
+            models_wells.push(model_well);
+        } // end wells loop
+
+  
+
+        return [...models_wells, ...models_circles];
     }
 
     // Signature from the base class, eslint doesn't like the any type.
@@ -377,13 +408,17 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
 
         const models = this.state["models"] as Model[];
 
-        // tube
-        //models[0].draw(args.context.renderPass);
-
-        // circles (for debug)
-        for (let i = 1; i < models.length; i++) {
+        for (let i = 0; i < models.length; i++) {
             models[i].draw(args.context.renderPass);
         }
+
+        // // tube
+        // models[0].draw(args.context.renderPass);
+
+        // // circles (for debug)
+        // for (let i = 1; i < models.length; i++) {
+        //     models[i].draw(args.context.renderPass);
+        // }
     }
 
     // decodePickingColor(): number {
