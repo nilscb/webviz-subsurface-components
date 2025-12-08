@@ -90,7 +90,7 @@ import {
 } from "./utils/spline";
 import { getColor, getTrajectory } from "./utils/trajectory";
 //import { cloneDeep } from "lodash";
-import privateLayer from "./privateLayer";
+import tubeLayer from "./tubeLayer";
 //import { GeoJSONLoader } from "@loaders.gl/json";
 // import { GeoJSONLoader } from "@loaders.gl/json";
 // import { load } from "@loaders.gl/core";
@@ -508,9 +508,9 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
             this.props.data as unknown as FeatureCollection
         );
 
-        const myWells = new privateLayer(
+        const wellTube = new tubeLayer(
             this.getSubLayerProps({
-                id: "privateLayer",
+                id: "tubeLayer",
                 wellStrings,
                 material: {
                     ambient: 0.35,
@@ -726,7 +726,7 @@ export default class WellsLayer extends CompositeLayer<WellsLayerProps> {
 
         const layers = [
             outlineLayer,
-            myWells,
+            wellTube,
             logLayer,
             colorsLayer,
             highlightLayer,

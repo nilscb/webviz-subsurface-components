@@ -43,8 +43,8 @@ import { createDefaultContinuousColorScale } from "@emerson-eps/color-tables/dis
 
 import { Vector3, Matrix3 } from "@math.gl/core";
 
-import vertexShader from "./vertex.glsl";
-import fragmentShader from "./fragment.glsl";
+import vertexShader from "./tube_vertex.glsl";
+import fragmentShader from "./tube_fragment.glsl";
 
 import vertexShaderLine from "./line.vs.glsl";
 import fragmentShaderLine from "./line.fs.glsl";
@@ -88,7 +88,7 @@ function getImageData(colorTables: colorTablesArray) {
     return data ? data : [0, 0, 0];
 }
 
-export interface PrivateLayerProps extends ExtendedLayerProps {
+export interface TubeLayerProps extends ExtendedLayerProps {
     wellStrings: number[][];
     depthTest: boolean;
 }
@@ -158,7 +158,7 @@ function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>,
 }
 
 
-export default class privateLayer extends Layer<PrivateLayerProps> {
+export default class tubeLayer extends Layer<TubeLayerProps> {
 
      setShaderModuleProps(
         args: Partial<{
@@ -169,7 +169,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
             ...args,
             lighting: {
                 ...args["lighting"],
-                enabled: false, //true, //this.props.enableLighting,
+                enabled: true, //true, //this.props.enableLighting,
             },
         });
     }
@@ -230,19 +230,23 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
         const no_wells = wellStrings.length;
 
         const no_circle_pts = 20; // number of points around circle
-        const current_circle = Array<number>(no_circle_pts * 3);
 
         // Loop wells.
         const models_wells = [];
         const models_circles = [];
-        const min_indexes: number[] = [];
-        for (let well_no = 0; well_no < 1/*no_wells*/; well_no++) {  // no_wells 6
+
+        for (let well_no = 0; well_no < no_wells; well_no++) {  // no_wells = 20
+        //for (let well_no = 16; well_no < 18; well_no++) {
+            const min_indexes: number[] = [];
+            const current_circle = Array<number>(no_circle_pts * 3);
+
             const w = wellStrings[well_no].flat();
 
             const nvertexs = w.length / 3;
 
             let col = colors_array[well_no % colors_array.length];
-            const radii = 50; //getRadii() + well_no * 1;  // 30 + Math.random() * 30;
+            //const radii = 100; //getRadii() + well_no * 1;  // 30 + Math.random() * 30;
+            const radii = 50 + well_no * 1;  // 30 + Math.random() * 30;
 
             const vertexs = new Float32Array(nvertexs * no_circle_pts * 3);
             const indexs: number[] = []; // XX preallocate??
@@ -268,7 +272,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
                     vertexs[idx + 1] = current_circle[c * 3 + 1];
                     vertexs[idx + 2] = current_circle[c * 3 + 2];
 
-                    col = colors_array[Math.floor(Math.random() * colors_array.length)];
+                    //col = colors_array[Math.floor(Math.random() * colors_array.length)];
                     colors.push(...col); // cols og mds må være pr vertex!!
                     myMds.push( c % 2);
 
@@ -279,7 +283,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
                     }
                 }
                 min_indexes.push(min_index);
-                models_circles.push(this.makeCircleModel(context, current_circle));
+                // XXX models_circles.push(this.makeCircleModel(context, current_circle));
             }
 
             // Connect circles with triangles.
@@ -289,7 +293,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
 
                 //console.log("upper_index, lower_index: ", upper_index, lower_index);
 
-                for (let j = 0; j <  no_circle_pts; j++) {
+                for (let j = 0; j < no_circle_pts; j++) {
                     const i_upper = (upper_index + j) % no_circle_pts;
                     const i_lower = (lower_index + j) % no_circle_pts;
 
@@ -300,7 +304,7 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
                     // upper circle indexes
                     p1 = i * no_circle_pts + i_upper;
                     p2 = (i_upper < no_circle_pts - 1 ? p1 + 1 : i * no_circle_pts);
-                    console.log("p1, p2: ", p1, p2);
+                    //console.log("p1, p2: ", p1, p2);
 
                     // lower circle indexes
                     p3 = (i + 1) * no_circle_pts + i_lower;
@@ -316,62 +320,16 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
                     indexs.push(p3);
                     indexs.push(p2);
                     indexs.push(p4);
-
-                    // if (i_upper === no_circle_pts - 2) {
-
-                    // if (j === no_circle_pts - 2) { heller jekke på i_upper etc her vel
-                    //     // const i_upper = (upper_index + (no_circle_pts - 1)) % (no_circle_pts - 1);
-                    //     // const i_lower = (lower_index + (no_circle_pts - 1)) % (no_circle_pts - 1);
-
-                    //     // // upper circle indexes
-                    //     // p1 = i * no_circle_pts + i_upper;
-                    //     // p2 = i * no_circle_pts + upper_index;
-
-                    //     // // lower circle indexes
-                    //     // p3 = (i + 1) * no_circle_pts + i_lower;
-                    //     // p4 = (i + 1) * no_circle_pts + lower_index;
-
-                    //     // // t1
-                    //     // indexs.push(p1);
-                    //     // indexs.push(p2);
-                    //     // indexs.push(p3);
-
-                    //     // // t2
-                    //     // indexs.push(p3);
-                    //     // indexs.push(p2);
-                    //     // indexs.push(p4);
-
-                    // } else {
-                    //     // upper circle indexes
-                    //     p1 = i * no_circle_pts + i_upper;
-                    //     p2 = i * no_circle_pts + (i_upper + 1);
-
-                    //     //console.log("p1, p2: ", p1, p2);
-
-                    //     // lower circle indexes
-                    //     p3 = (i + 1) * no_circle_pts + i_lower;
-                    //     p4 = (i + 1) * no_circle_pts + (i_lower + 1);
-
-                    //     // t1
-                    //     indexs.push(p1);
-                    //     indexs.push(p2);
-                    //     indexs.push(p3);
-
-                    //     // t2
-                    //     indexs.push(p3);
-                    //     indexs.push(p2);
-                    //     indexs.push(p4);
-                    // }
                 }
             }
 
-        // Create Model for the well tube.
-        const model_well = new Model(context.device, {
+            // Create Model for the well tube.
+            const model_well_tube = new Model(context.device, {
                 id: "tube model",
                 vs: vertexShader,
                 fs: fragmentShader,
                 geometry: new Geometry({
-                    topology: "triangle-list",
+                    topology: "triangle-list",  // "line-strip",   'line-strip' 'line-list'  triangle-list  https://luma.gl/docs/api-reference/core/resources/render-pipeline#primitivetopology
                     attributes: {
                         positions: { value: new Float32Array(vertexs), size: 3 },  // XXX trenger vel ikke kopi på disse...
                         colors: { value: new Float32Array(colors), size: 3 }, // XXX må være like mange som vertexes??
@@ -384,17 +342,17 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
                 modules: [project, picking, lighting, phongMaterial],
                 //isInstanced: false, // This only works when set to false.
             });
-            model_well.setUniforms({
+            model_well_tube.setUniforms({
                 //myColors: { value: new Float32Array(myColors), size: 3 },
                 myColors,
             });
 
-            models_wells.push(model_well);
+            models_wells.push(model_well_tube);
         } // end wells loop
 
   
 
-        return [...models_wells, ...models_circles];
+        return [...models_wells] // XXX , ...models_circles];
     }
 
     // Signature from the base class, eslint doesn't like the any type.
@@ -426,5 +384,5 @@ export default class privateLayer extends Layer<PrivateLayerProps> {
     // }
 }
 
-privateLayer.layerName = "privateLayer";
-privateLayer.defaultProps = defaultProps;
+tubeLayer.layerName = "tubeLayer";
+tubeLayer.defaultProps = defaultProps;
