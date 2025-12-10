@@ -199,7 +199,12 @@ function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>,
         const v = new Vector3([ PAPinv[0] * v0[0] + PAPinv[1] * v0[1] + PAPinv[2] * v0[2],    // eslint-disable-line
                                 PAPinv[3] * v0[0] + PAPinv[4] * v0[1] + PAPinv[5] * v0[2],    // eslint-disable-line
                                 PAPinv[6] * v0[0] + PAPinv[7] * v0[1] + PAPinv[8] * v0[2] ]); // eslint-disable-line
-        v.scale(radii); // Radius
+
+                //  TESTING RADIUS BASED ON ANGLE
+                const angle = Math.acos(v1.dot((new Vector3([v1[0], v1[1], 0])).normalize())) * 180 / Math.PI; // for testing
+                const new_radii = 90 - angle + radii;
+                //console.log("angle tube: ", angle);
+        v.scale(new_radii); // Radius
         v.add(p2);
 
         circle[k * 3 + 0] = v[0];
@@ -280,7 +285,7 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
 
         const no_wells = wellStrings.length;
 
-        const no_circle_pts = 12; // number of points around circle
+        const no_circle_pts = 24; // number of points around circle
 
         // Loop wells.
         const models_wells = [];
@@ -297,7 +302,7 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
 
             let col = colors_array[well_no % colors_array.length];
             //const radii = 100; //getRadii() + well_no * 1;  // 30 + Math.random() * 30;
-            const radii = 50 + well_no * 1;  // 30 + Math.random() * 30;
+            const radii = 0 + well_no * 1;  // 30 + Math.random() * 30;
 
             const vertexs = new Float32Array(nvertexs * no_circle_pts * 3);
             const indexs: number[] = []; // XX preallocate??
