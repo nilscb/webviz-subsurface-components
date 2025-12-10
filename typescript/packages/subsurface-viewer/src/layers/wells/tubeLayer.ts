@@ -48,6 +48,7 @@ import fragmentShader from "./tube_fragment.glsl";
 
 import vertexShaderLine from "./line.vs.glsl";
 import fragmentShaderLine from "./line.fs.glsl";
+import { dot } from "mathjs";
 
 // // function shuffle(array) {
 // //     let currentIndex = array.length;
@@ -109,27 +110,77 @@ function getRadii() {
     return 10 + Math.random() * 30;
 }
 
-function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>, radii): void {
+// XXX IDE: maa sende ned forrgie x akse antagelig...
+function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>, radii, prev_nx: Vector3): void {
     const npoints = circle.length / 3; // number of  points around the circle
 
     const v1 = p1.clone().subtract(p2).normalize();
     const v2 = p3.clone().subtract(p2).normalize();
 
+    // const angle = Math.acos(v1.dot(v2)) * 180 / Math.PI; // angle between v1 and v2 in degrees
+    // const angle2 = Math.acos(v2.dot(new Vector3([0, 0, 1]))) * 180 / Math.PI; // angle between v2 and z axis in degrees
+
+    // //console.log("angle: ", Math.abs(angle - 180) < 5);
+    // //console.log("angle: ", Math.abs(angle2 - 180));
+
+
     // Construct orthonormal coordinate system blabla ...
-    const nx = v1.clone().add(v2).normalize(); // bisector vector
-    const ny = v1.clone().cross(v2).normalize();
-    const nz = nx.clone().cross(ny);
+    
+    // let nx = new Vector3([1, 0, 0]);
+    // let ny = new Vector3([0, 1, 0]);
+    //if (Math.abs(angle - 180) > 0.05) {
+        //console.log("Using bisector angle");
+        let nx = v1.clone().add(v2).normalize(); // bisector vector
+        let ny = v1.clone().cross(v2).normalize();
+    //}
+    let nz = nx.clone().cross(ny);
 
-
-    // Disse to kan holdes konstant over sirkelen
-    const P = new Matrix3([nx[0], ny[0], nz[0],    // eslint-disable-line
-                           nx[1], ny[1], nz[1],    // eslint-disable-line
-                           nx[2], ny[2], nz[2] ]); // eslint-disable-line
+    // Coordinate system descibing the circle plane.
+    let P = new Matrix3([nx[0], ny[0], nz[0],    // eslint-disable-line
+                         nx[1], ny[1], nz[1],    // eslint-disable-line
+                         nx[2], ny[2], nz[2] ]); // eslint-disable-line
     P.transpose(); //  XXX lag kommentar her.. noe med row major for,m eller noe.. den lagres anderledes enn jeg oppga den over..
-    const Pinv = P.clone().invert(); // XX trengs clone her?
+    let Pinv = P.clone().invert(); // XX trengs clone her?
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    // Map prev_nx into circle plane
+    let new_nx = new Vector3([ P[0] * prev_nx[0] + P[1] * prev_nx[1] + P[2] * prev_nx[2],    // eslint-disable-line
+                               P[3] * prev_nx[0] + P[4] * prev_nx[1] + P[5] * prev_nx[2],    // eslint-disable-line
+                               P[6] * prev_nx[0] + P[7] * prev_nx[1] + P[8] * prev_nx[2] ]); // eslint-disable-line
+    // Set z component to zero and renormalize
+    new_nx[2] = 0;
+    new_nx.normalize();
+    // Map back to global system
+    new_nx = new Vector3([ Pinv[0] * new_nx[0] + Pinv[1] * new_nx[1] + Pinv[2] * new_nx[2],    // eslint-disable-line
+                            Pinv[3] * new_nx[0] + Pinv[4] * new_nx[1] + Pinv[5] * new_nx[2],    // eslint-disable-line
+                            Pinv[6] * new_nx[0] + Pinv[7] * new_nx[1] + Pinv[8] * new_nx[2] ]); // eslint-disable-line
+    new_nx.normalize();
+
+    // const dotProduct = new_nx.dot(nz);  //should be 0
+    // console.log("dotProduct nx nz: ", dotProduct);
+
+    // Store for next time
+    prev_nx[0] = new_nx[0];
+    prev_nx[1] = new_nx[1];
+    prev_nx[2] = new_nx[2];
+
+    // new nx is now along the prev_nx direction projected onto the circle plane
+    nx = new_nx.clone();
+    ny = nz.clone().cross(nx).normalize();
+    //console.log("dotProduct ny ny: ",  nx.dot(ny));
+
+    // recompute coordinate system with the new nx
+    P = new Matrix3([nx[0], ny[0], nz[0],    // eslint-disable-line
+                     nx[1], ny[1], nz[1],    // eslint-disable-line
+                     nx[2], ny[2], nz[2] ]); // eslint-disable-line
+    P.transpose();
+    Pinv = P.clone().invert();
+    /////////////////////////////////////////////////////////////////////////////////////
+
+
 
     // Make a circle of points around p1.
-    const da = 360 / (npoints);
+    const da = 360 / npoints;
     const v0 = nx.clone(); //.scale(200); // Det er denne som skal roteres
 
     for (let k = 0; k < npoints; k++) {
@@ -229,14 +280,14 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
 
         const no_wells = wellStrings.length;
 
-        const no_circle_pts = 20; // number of points around circle
+        const no_circle_pts = 12; // number of points around circle
 
         // Loop wells.
         const models_wells = [];
         const models_circles = [];
 
-        for (let well_no = 0; well_no < no_wells; well_no++) {  // no_wells = 20
-        //for (let well_no = 16; well_no < 18; well_no++) {
+        //for (let well_no = 0; well_no < no_wells; well_no++) {  // no_wells = 20
+        for (let well_no = 0; well_no < no_wells; well_no++) {
             const min_indexes: number[] = [];
             const current_circle = Array<number>(no_circle_pts * 3);
 
@@ -254,6 +305,7 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
             const myMds: number[] = [];
 
             // Create circles along the well path.
+            const prev_nx = new Vector3([1, 0, 0]);
             const n = nvertexs;
             let ncircles = 0;
             for (let i = 0; i < n - 2; i++) {
@@ -261,7 +313,8 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
                 const p2 = new Vector3([w[(i + 1) * 3 + 0], w[(i + 1) * 3 + 1], w[(i + 1) * 3 + 2]]); // eslint-disable-line
                 const p3 = new Vector3([w[(i + 2) * 3 + 0], w[(i + 2) * 3 + 1], w[(i + 2) * 3 + 2]]); // eslint-disable-line
 
-                getCircle(p1, p2, p3, current_circle, radii);
+                getCircle(p1, p2, p3, current_circle, radii, prev_nx);
+
                 ncircles++;
                 let min_x = 9999999;
                 let min_index = -1;
@@ -283,7 +336,7 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
                     }
                 }
                 min_indexes.push(min_index);
-                // XXX models_circles.push(this.makeCircleModel(context, current_circle));
+                models_circles.push(this.makeCircleModel(context, current_circle));
             }
 
             // Connect circles with triangles.
@@ -294,8 +347,8 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
                 //console.log("upper_index, lower_index: ", upper_index, lower_index);
 
                 for (let j = 0; j < no_circle_pts; j++) {
-                    const i_upper = (upper_index + j) % no_circle_pts;
-                    const i_lower = (lower_index + j) % no_circle_pts;
+                    const i_upper = j; //(upper_index + j) % no_circle_pts;
+                    const i_lower = j; //(lower_index + j) % no_circle_pts;
 
                     //console.log("i_upper, i_lower: ", i_upper, i_lower);
 
@@ -352,7 +405,7 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
 
   
 
-        return [...models_wells] // XXX , ...models_circles];
+        return [...models_wells]; // ...models_circles];// XXX , ...models_circles];
     }
 
     // Signature from the base class, eslint doesn't like the any type.
