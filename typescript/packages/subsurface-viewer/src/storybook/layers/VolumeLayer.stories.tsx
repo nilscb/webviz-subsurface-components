@@ -26,22 +26,27 @@ const parameters = {
     },
 };
 
-const layerProps = {
-   // lines: [0, 0, 0,  1, 0, 0,  1, 0, 1],
-};
+// const layerProps = {
+//     lines: [0, 0, 0, 1, 0, 0, 1, 0, 1],
+// };
 
 const volumeLayer = new VolumeLayer({
+    //cullMode: 'front',
+    parameters: {cull: false}
      //"@@type": "VolumeLayer",
-    ...layerProps,
+    //...layerProps,
 });
 
-const d = 0.01;
+const d = -0.0;
 const axesLayer = new AxesLayer({
     //"@@type": "AxesLayer",
     id: "axes-layer2",
-    //bounds: [0, 0, 0, 1, 1, 1],
-    bounds: [-0.5+d, -0.5+d, -0.5+d, 0.5-d, 0.5-d, 0.5-d],
+    bounds: [0, 0, 0, 1, 1, 1],
+    //bounds: [-0.5 + d, -0.5 + d, -0.5 + d, 0.5 - d, 0.5 - d, 0.5 - d],
     ZIncreasingDownwards: false,
+    parameters: {
+        depthTest: false // Disables depth testing for this layer
+    }
 });
 
 export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
@@ -52,9 +57,9 @@ export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
             rotationX: 25,
             //zoom: [-100, -100, -10, 100, 100, 60] as BoundingBox3D,
             zoom: 8,
-            target: [0, 0, 0],
+            target: [0.5, 0.5, 0.5],
         },
-        layers: [volumeLayer, axesLayer],
+        layers: [volumeLayer], //, axesLayer],
         views: {
             layout: [1, 1] as [number, number],
             viewports: [
@@ -65,6 +70,5 @@ export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
             ],
         },
     },
-    parameters,
     render: (args) => <SubsurfaceViewer {...args} />,
 };
