@@ -11,6 +11,10 @@ out vec4 fragColor;
 
 uniform vec4 uColor;
 
+precision highp sampler3D;
+uniform sampler3D myTexture;
+
+
 vec2 intersect_box(vec3 orig, vec3 dir) {
 	const vec3 box_min = vec3(0);
 	const vec3 box_max = vec3(1);
@@ -27,17 +31,17 @@ vec2 intersect_box(vec3 orig, vec3 dir) {
 
 void main(void) {
 
-  vec3 view_direction = normalize(cameraPosition - position_commonspace);
-  vec3 ray_dir = -view_direction;
-  ray_dir = normalize(ray_dir);  // XXX trengs kanskje ikke. nei det gjode den ikke...
-  vec3 eye = cameraPosition + vec3(0.5, 0.5, 0.5); // tranlserte den litt ned jeg for å fåden i midten...
+  vec3 view_direction = normalize(position_commonspace - cameraPosition);
+  //vec3 ray_dir = view_direction;
+  // vec3 view_direction = normalize(cameraPosition - position_commonspace);
+  // vec3 ray_dir = -view_direction;
+  vec3 ray_dir = normalize(view_direction);
+  vec3 eye = cameraPosition + vec3(0.5, 0.5, 0.5); // dette skjønner jeg ikke..translerte den litt ned jeg for å få den i midten...
 
-  //vec3 n = normalize(normals_commonspace);
 
-  // front face culling
+  // front face culling (to avoid doubling of colors)
   float a = dot(ray_dir, normals_commonspace);
   if (a < 0.0) {
-    //fragColor  = vec4(0.0, 0.0, 1.0, 1.0); 
     discard;
     return;
   }
@@ -45,11 +49,11 @@ void main(void) {
 
   vec2 t_hit = intersect_box(eye, ray_dir);
   bool hit = t_hit.x < t_hit.y; // XXX tror det er e bug i orginalen  her den bruker ">"
-	if (!hit) {
-    //fragColor  = vec4(1.0, 0.0, 0.0, 1.0); 
-    //return;
-		discard;
-	}
+	// if (!hit) {
+  //   //fragColor  = vec4(1.0, 0.0, 0.0, 1.0); 
+  //   //return;
+	// 	discard;
+	// }
 
 
 	// We don't want to sample voxels behind the eye if it's
@@ -59,7 +63,7 @@ void main(void) {
 
   // Step 3: Compute the step size to march through the volume grid
   vec3 dt_vec = (1.0 / (vec3(1.0, 1.0, 1.0)) * abs(ray_dir));
-  float dt = 0.005; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));
+  float dt = 0.005; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));  //0.0005; //
 
 
   // DEBUG XXX
@@ -75,6 +79,7 @@ void main(void) {
 
 	// Step 4: Starting from the entry point, march the ray through the volume
 	// and sample it
+  float alpha = 0.005;
 	vec3 p = eye + t_hit.x * ray_dir;
   fragColor = vec4(0.0, 0.0, 0.0, 0.0);
 	for (float t = t_hit.x; t < t_hit.y; t += dt) {
@@ -83,47 +88,48 @@ void main(void) {
 		// Note that here we don't use the opacity from the transfer function,
 		// and just use the sample value as the opacity
 
-		// float val = texture(volume, p).r;
-    vec4 val_color;
-    float val = 0.0;
-    if ( (p[0] > 0.25 && p[0] < 0.75)
-      && (p[1] > 0.25 && p[1] < 0.75)
-      && (p[2] > 0.25 && p[2] < 0.75)) {
-      val = 0.01;
-      val_color = vec4(1.0, 0.0, 1.0,  val); 
+    // Pick color from texture.
+    vec4 texture_val = texture(myTexture, p); //vec3(0.5, 0.5, 0.5));
+    float property = texture_val.r;
+    vec4 voxel_color = vec4(property, 0.0, 0.0, alpha);
+    if (property == 0.0) { // empty voxel
+      voxel_color = vec4(0.0, 0.0, 0.0, 0.001); //juster alpha her for fargen på tomme voxler 
+    }
 
-      // This flat sheet.
-      if (p[2] > 0.5 && p[2] < 0.51) {
-        val = 0.3;
-        val_color = vec4(0.0, 1.0, 0.0,  val); 
-      }
-    }
-    else if ( (p[0] > 0.0 && p[0] < 0.25)
-      && (p[1] > 0.0 && p[1] < 0.25)
-      && (p[2] > 0.0 && p[2] < 0.25)) {
-      val = 1.0;
-      val_color = vec4(0.0, 0.0, 1.0,  val); 
-    }
-    else {
-      val = 0.0;
-      val_color = vec4(0.0, 0.0, 0.0,  val); 
-    }
+    // //float property = texture(myTexture, vec3(1.0, 1.0, 1.0));
+    //vec4 texture_val = texture(myTexture, vec3(0.5, 0.5, 0.5)); // texture coordinates range from 0.0 to 1.0
+    //vec4 voxel_color = vec4(texture_val.rgb, alpha); //vec4(0.0, property, 0.0, alpha);
+
+
+
+    //vec4 voxel_color = vec4(0.0, 0.0, 0.0, alpha);
+    // if ( (p[0] > 0.25 && p[0] < 0.75)
+    //   && (p[1] > 0.25 && p[1] < 0.75)
+    //   && (p[2] > 0.25 && p[2] < 0.75)) {
+    //   //val = 0.01;
+    //   voxel_color = texture_col;
+
+    //   // This flat sheet.
+    //   if (p[2] > 0.5 && p[2] < 0.51) {
+    //     voxel_color = vec4(0.0, 1.0, 0.0,  0.3); 
+    //   }
+    // }
 
 
     // float dist = length(p - vec3(0.5, 0.5, 0.5));
     // float val = exp(-0.5 * ((dist * dist) / 0.01));
-    // vec4 val_color = vec4(0.0, 1.0, 1.0,  val); //// vec4(texture(transfer_fcn, vec2(val, 0.5)).rgb, val);
+    // vec4 voxel_color = vec4(0.0, 1.0, 1.0,  val); //// vec4(texture(transfer_fcn, vec2(val, 0.5)).rgb, val);
     // if (dist < 0.2) {
     //   val = 1.0;
-    //   val_color = vec4(1.0, 0.0, 1.0,  val);
+    //   voxel_color = vec4(1.0, 0.0, 1.0,  val);
     // }
 
-	
+
 
 		// Step 4.2: Accumulate the color and opacity using the front-to-back
 		// compositing equation
-		fragColor.rgb += (1.0 - fragColor.a) * val_color.a * val_color.rgb;
-		fragColor.a += (1.0 - fragColor.a) * val_color.a;
+		fragColor.rgb += (1.0 - fragColor.a) * voxel_color.a * voxel_color.rgb;
+		fragColor.a += (1.0 - fragColor.a) * voxel_color.a;
 
 		// Optimization: break out of the loop when the color is near opaque
 		if (fragColor.a >= 0.95) {
@@ -131,7 +137,7 @@ void main(void) {
 		}
 
 		p += ray_dir * dt;
-	}  
+	}
 }
 `;
 
