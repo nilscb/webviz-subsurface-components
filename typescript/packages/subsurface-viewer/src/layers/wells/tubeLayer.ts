@@ -201,7 +201,7 @@ function getCircle(p1: Vector3, p2: Vector3, p3: Vector3, circle: Array<number>,
                                 PAPinv[6] * v0[0] + PAPinv[7] * v0[1] + PAPinv[8] * v0[2] ]); // eslint-disable-line
 
                 //  TESTING RADIUS BASED ON ANGLE
-                const angle = Math.acos(v1.dot((new Vector3([v1[0], v1[1], 0])).normalize())) * 180 / Math.PI; // for testing
+                //const angle = Math.acos(v1.dot((new Vector3([v1[0], v1[1], 0])).normalize())) * 180 / Math.PI; // for testing
                 const new_radii = radii; //90 - angle + radii;
                 //console.log("angle tube: ", angle);
         v.scale(new_radii); // Radius
@@ -290,10 +290,8 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
         // Loop wells.
         const models_wells = [];
         const models_circles = [];
-
-        //for (let well_no = 0; well_no < no_wells; well_no++) {  // no_wells = 20
         for (let well_no = 0; well_no < no_wells; well_no++) {
-            const min_indexes: number[] = [];
+            //const min_indexes: number[] = [];
             const current_circle = Array<number>(no_circle_pts * 3);
 
             const w = wellStrings[well_no].flat();
@@ -340,22 +338,16 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
                         min_index = c;
                     }
                 }
-                min_indexes.push(min_index);
-                models_circles.push(this.makeCircleModel(context, current_circle));
+                //min_indexes.push(min_index);
+                //models_circles.push(this.makeCircleModel(context, current_circle));
             }
 
             // Connect circles with triangles.
             for (let i = 0; i < ncircles; i++) { // XXX -1 skal vel fjernes her når jeg fikser sirkler over hele
-                const upper_index = min_indexes[i]; // index of point with smallest x in upper circle
-                const lower_index = min_indexes[i + 1]; // index of point with smallest x in lower circle
-
-                //console.log("upper_index, lower_index: ", upper_index, lower_index);
 
                 for (let j = 0; j < no_circle_pts; j++) {
                     const i_upper = j; //(upper_index + j) % no_circle_pts;
                     const i_lower = j; //(lower_index + j) % no_circle_pts;
-
-                    //console.log("i_upper, i_lower: ", i_upper, i_lower);
 
                     let p1, p2, p3, p4;
 
@@ -389,7 +381,7 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
                 geometry: new Geometry({
                     topology: "triangle-list",  // "line-strip",   'line-strip' 'line-list'  triangle-list  https://luma.gl/docs/api-reference/core/resources/render-pipeline#primitivetopology
                     attributes: {
-                        positions: { value: new Float32Array(vertexs), size: 3 },  // XXX trenger vel ikke kopi på disse...
+                        positions: { value: vertexs, size: 3 }, //{ value: new Float32Array(vertexs), size: 3 },  // XXX trenger vel ikke kopi på disse...
                         colors: { value: new Float32Array(colors), size: 3 }, // XXX må være like mange som vertexes??
                         myMds: { value: new Float32Array(myMds), size: 1 },
                     },
@@ -407,8 +399,6 @@ export default class tubeLayer extends Layer<TubeLayerProps> {
 
             models_wells.push(model_well_tube);
         } // end wells loop
-
-  
 
         return [...models_wells]; // ...models_circles];// XXX , ...models_circles];
     }
