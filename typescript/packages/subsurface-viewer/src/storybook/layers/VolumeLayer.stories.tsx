@@ -4,6 +4,7 @@ import DeckGL from "@deck.gl/react";
 import SubsurfaceViewer from "../../SubsurfaceViewer";
 import VolumeLayer from "../../layers/volume/volumeLayer";
 import AxesLayer from "../../layers/axes/axesLayer";
+import { loadDataArray } from "../../utils";
 //import { default3DViews } from "../sharedSettings";
 
 const stories: Meta = {
@@ -30,23 +31,34 @@ const parameters = {
 //     lines: [0, 0, 0, 1, 0, 0, 1, 0, 1],
 // };
 
+// fetch data
+const propertiesData = await loadDataArray(
+    "seismic_Z0_115_103.float32",
+    Float32Array
+);
+
+
+
 const volumeLayer = new VolumeLayer({
-    //cullMode: 'front',
-    parameters: {cull: false}
-     //"@@type": "VolumeLayer",
-    //...layerProps,
+    id: "volume-layer1",
+    name: "Volume Layer",
+    parameters: { cull: false },  // viktig så vi ser innsiden av kuben
+    propertiesData: propertiesData!,
+    width: 115,
+    height: 103,
+
+    smooth: true,
 });
 
-const d = -0.0;
+
 const axesLayer = new AxesLayer({
     //"@@type": "AxesLayer",
     id: "axes-layer2",
     bounds: [0, 0, 0, 1, 1, 1],
-    //bounds: [-0.5 + d, -0.5 + d, -0.5 + d, 0.5 - d, 0.5 - d, 0.5 - d],
     ZIncreasingDownwards: false,
-    parameters: {
-        depthTest: false // Disables depth testing for this layer
-    }
+    // parameters: {
+    //     depthTest: false // Disables depth testing for this layer
+    // }
 });
 
 export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
@@ -59,7 +71,7 @@ export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
             zoom: 8,
             target: [0.5, 0.5, 0.5],
         },
-        layers: [volumeLayer], //, axesLayer],
+        layers: [volumeLayer, axesLayer],
         views: {
             layout: [1, 1] as [number, number],
             viewports: [

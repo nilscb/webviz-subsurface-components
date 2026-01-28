@@ -11,8 +11,10 @@ import type { ExtendedLayerProps } from "../utils/layerTools";
 import type { DeckGLLayerContext } from "../utils/layerTools";
 
 import type { Device } from "@luma.gl/core";
+//import { loadDataArray } from "../../utils";
+import { getImageData } from "../utils/colormapTools";
 
-// Unit box. 
+// Unit box.
 const s = 1;
 const unit_box = new Float32Array([
     0, 0, 0,  s, 0, 0,  0, s, 0,  // bot Z
@@ -64,6 +66,12 @@ const normals = new Float32Array([
 export interface VolumeLayerProps extends ExtendedLayerProps {
     //lines: number[]; // from pt , to pt.
     //color: Color;
+
+    smooth: boolean;
+
+    propertiesData: Float32Array;
+    width: number;
+    height: number;
 }
 
 const defaultProps = {
@@ -94,62 +102,93 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             [x: string]: Partial<Record<string, unknown> | undefined>;
         }>
     ): void {
-        // XXX det er noe som heter compressed texture i luma.gl som kanskje kan brukes her..
-        // const property = 100; // [0.255]
-        // const val = Math.floor(Math.random() * 256);
-        // console.log("VolumeLayer: Creating 3D texture with val=", val);
-        // https://luma.gl/docs/api-reference/core/resources/texture
-        const n = 100;
-        const data = new Uint8Array(n * n * n);
-        for (let i = 0; i < n; i++)
-        for (let j = 0; j < n; j++)
-        for (let k = 0; k < n; k++) {
-            const index = i * n * n + j * n + k;
-            // data[index] = Math.floor(Math.random() * 256);
-            // Create a sphere in the volume
-            const cx = n / 2;
-            const cy = n / 2;
-            const cz = n / 2;
-            const radius = n / 2.5;
-            const dist = Math.sqrt((i - cx) * (i - cx) + (j - cy) * (j - cy) + (k - cz) * (k - cz));
-            if (dist < radius) {
-                data[index] = 255;
-            } else {
-                data[index] = 0;
-            }
-            //data[index] = 200;
-        }
-        const myTexture = this.context.device.createTexture({
-            sampler: {
-                addressModeU: "clamp-to-edge",
-                addressModeV: "clamp-to-edge",
-                addressModeW: "clamp-to-edge",
-                minFilter: "nearest", //"linear",  // XXX change bak later...
-                magFilter: "nearest", //"linear",
-            },
-            dimension: "3d",
-            width: n,
-            height: n,
-            depth: n,
-
-            //ormat: "rgba8unorm",
-            //data: new Uint8Array([240, 1, 255, 1]),
-
-            format: "r8unorm", //"rgba8unorm",
-            data, // new Uint8Array([255]),
-        });
-
-
-
-        this.state.model?.setBindings({ myTexture: myTexture });
-
+        // this.state.model?.setBindings({ propertyTexture: propertyTexture, colorMapTexture: colorMapTexture });
         super.setShaderModuleProps({
             ...args,
         });
     }
 
     //eslint-disable-next-line
-    _getModels(device: Device) {   //context: DeckGLLayerContext) {
+    _getModels(device: Device) {
+        const w = this.props.width;
+        const h = this.props.height;
+        const maxValue = Math.max(...this.props.propertiesData);
+        const minValue = Math.min(...this.props.propertiesData);
+        console.log("minValue=", minValue, " maxValue=", maxValue);
+
+        // Create 3D texture for volume data.
+        // https://luma.gl/docs/api-reference/core/resources/texture
+        const n = 100;
+        const data = new Uint8Array(n * n * n);
+        /* eslint-disable */
+        for (let i = 0; i < n; i++)
+        for (let j = 0; j < n; j++)
+        for (let k = 0; k < n; k++) {
+            const index_cube = i * n * n + j * n + k;
+
+            const i_data = w * (k / n);
+            const j_data = h * (i / n);
+            const p = this.props.propertiesData[Math.floor(j_data) * w + Math.floor(i_data)];
+            const scaledP = 255 * (p - minValue) / (maxValue - minValue);
+    
+            //data[index_cube] = data[index_cube] = p !== 0 && (j === 0 || j == 50) ? scaledP : 0;
+            data[index_cube] = data[index_cube] = p > -0.8 && p !== 0 
+                                               && j > 35 && j < 65? scaledP : 0;
+
+            // // Create a sphere in the volume
+            // const cx = n / 2;
+            // const cy = n / 2;
+            // const cz = n / 2;
+            // const radius = n / 2.5;
+            // const dist = Math.sqrt((i - cx) * (i - cx) + (j - cy) * (j - cy) + (k - cz) * (k - cz));
+            // if (dist < radius) {
+            //     data[index] = 255;
+            // } else {
+            //     data[index] = 0;
+            // }
+
+        }
+        /* eslint-enable */
+
+
+        const propertyTexture = this.context.device.createTexture({
+            sampler: {
+                addressModeU: "clamp-to-edge",
+                addressModeV: "clamp-to-edge",
+                addressModeW: "clamp-to-edge",
+                minFilter: this.props.smooth ? "linear" : "nearest",
+                magFilter: this.props.smooth ? "linear" : "nearest",
+            },
+            dimension: "3d",
+            width: n,
+            height: n,
+            depth: n,
+            format: "r8unorm", //"rgba8unorm",
+            data,
+        });
+
+        // Color map texture.
+        const colorMapTexture = this.context.device.createTexture({
+            sampler: {
+                addressModeU: "clamp-to-edge",
+                addressModeV: "clamp-to-edge",
+                minFilter: "linear",
+                magFilter: "linear",
+            },
+            dimension: "3d", // both textures of same dimension or luma complains
+            width: 256,
+            height: 1,
+            depth: 1,
+            format: "rgb8unorm-webgl",
+            data: getImageData({
+                colormapName: "seismic",  // seismic  physics rainbow
+                colorTables: (this.context as DeckGLLayerContext).userData
+                    .colorTables,
+            }),
+        });
+
+        const bindings = { propertyTexture, colorMapTexture };
+
         const color = [0.5, 0.5, 0.5, 0.5];
         const grids = new Model(device, {
             id: `${this.props.id}-grids`,
@@ -164,6 +203,8 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
                 },
                 vertexCount: unit_box.length / 3,
             }),
+            bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
+            bindings,
             modules: [project],
             isInstanced: false,
         });

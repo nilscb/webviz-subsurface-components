@@ -4,7 +4,7 @@ const fragmentShader = `#version 300 es
 precision highp float;
 
 flat in vec3 normals_commonspace;
-in vec3 position_commonspace;  // XXX bare pruke position??? ikke commonspace greiene..
+in vec3 position_commonspace;
 flat in vec3 cameraPosition;
 
 out vec4 fragColor;
@@ -12,7 +12,8 @@ out vec4 fragColor;
 uniform vec4 uColor;
 
 precision highp sampler3D;
-uniform sampler3D myTexture;
+uniform sampler3D propertyTexture;
+uniform sampler3D colorMapTexture;
 
 
 vec2 intersect_box(vec3 orig, vec3 dir) {
@@ -30,13 +31,9 @@ vec2 intersect_box(vec3 orig, vec3 dir) {
 
 
 void main(void) {
-
   vec3 view_direction = normalize(position_commonspace - cameraPosition);
-  //vec3 ray_dir = view_direction;
-  // vec3 view_direction = normalize(cameraPosition - position_commonspace);
-  // vec3 ray_dir = -view_direction;
   vec3 ray_dir = normalize(view_direction);
-  vec3 eye = cameraPosition + vec3(0.5, 0.5, 0.5); // dette skjønner jeg ikke..translerte den litt ned jeg for å få den i midten...
+  vec3 eye = cameraPosition + vec3(0.5, 0.5, 0.5); // move eye to center of volume
 
 
   // front face culling (to avoid doubling of colors)
@@ -49,37 +46,23 @@ void main(void) {
 
   vec2 t_hit = intersect_box(eye, ray_dir);
   bool hit = t_hit.x < t_hit.y; // XXX tror det er e bug i orginalen  her den bruker ">"
-	// if (!hit) {
-  //   //fragColor  = vec4(1.0, 0.0, 0.0, 1.0); 
-  //   //return;
-	// 	discard;
-	// }
-
+	if (!hit) {
+		discard;
+    return;
+	}
 
 	// We don't want to sample voxels behind the eye if it's
 	// inside the volume, so keep the starting point at or in front
 	// of the eye
 	t_hit.x = max(t_hit.x, 0.0);
 
-  // Step 3: Compute the step size to march through the volume grid
+  // Compute the step size to march through the volume grid
   vec3 dt_vec = (1.0 / (vec3(1.0, 1.0, 1.0)) * abs(ray_dir));
-  float dt = 0.005; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));  //0.0005; //
+  float dt = 0.0005; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));  //0.0005; //
 
 
-  // DEBUG XXX
-  // //bool in_interval = t_hit.x > 2.25 && t_hit.x < 3.4;
-  // //bool in_interval = abs(ray_dir)) > 0.9  && abs(ray_dir)) < 1.1;
-  // //float dt = dt_vec.z;
-  // bool in_interval = dt > 0.0  && dt < 0.2;
-  // // bool in_interval = t_hit.x < t_hit.y;
-  // fragColor  = vec4(!in_interval ? 1.0 : 0.0, in_interval ? 1.0 : 0.0, 0.0,  1.0); //vec4(0.0, t_hit.x > t_hit.y ? 1.0 : 0.0,  0.0, 1.0); 
-  // return;
-
-
-
-	// Step 4: Starting from the entry point, march the ray through the volume
-	// and sample it
-  float alpha = 0.005;
+	// Starting from the entry point, march the ray through the volume and sample it.
+  float alpha = 0.02; // 0.005
 	vec3 p = eye + t_hit.x * ray_dir;
   fragColor = vec4(0.0, 0.0, 0.0, 0.0);
 	for (float t = t_hit.x; t < t_hit.y; t += dt) {
@@ -89,40 +72,24 @@ void main(void) {
 		// and just use the sample value as the opacity
 
     // Pick color from texture.
-    vec4 texture_val = texture(myTexture, p); //vec3(0.5, 0.5, 0.5));
+    vec4 texture_val = texture(propertyTexture, p); //vec3(0.5, 0.5, 0.5));
     float property = texture_val.r;
-    vec4 voxel_color = vec4(property, 0.0, 0.0, alpha);
-    if (property == 0.0) { // empty voxel
-      voxel_color = vec4(0.0, 0.0, 0.0, 0.001); //juster alpha her for fargen på tomme voxler 
+
+    vec4 color_map_val = texture(colorMapTexture, vec3(property, 0.5, 0.5)); //vec2(property, 0.5)); 
+
+    if (property > 0.5 && property < 0.6) { // make this interval more transparent.
+      alpha /= 2.0;
     }
+    vec4 voxel_color = vec4(color_map_val.rgb, alpha);
 
-    // //float property = texture(myTexture, vec3(1.0, 1.0, 1.0));
-    //vec4 texture_val = texture(myTexture, vec3(0.5, 0.5, 0.5)); // texture coordinates range from 0.0 to 1.0
-    //vec4 voxel_color = vec4(texture_val.rgb, alpha); //vec4(0.0, property, 0.0, alpha);
-
-
-
-    //vec4 voxel_color = vec4(0.0, 0.0, 0.0, alpha);
-    // if ( (p[0] > 0.25 && p[0] < 0.75)
-    //   && (p[1] > 0.25 && p[1] < 0.75)
-    //   && (p[2] > 0.25 && p[2] < 0.75)) {
-    //   //val = 0.01;
-    //   voxel_color = texture_col;
-
-    //   // This flat sheet.
-    //   if (p[2] > 0.5 && p[2] < 0.51) {
-    //     voxel_color = vec4(0.0, 1.0, 0.0,  0.3); 
-    //   }
-    // }
-
-
-    // float dist = length(p - vec3(0.5, 0.5, 0.5));
-    // float val = exp(-0.5 * ((dist * dist) / 0.01));
-    // vec4 voxel_color = vec4(0.0, 1.0, 1.0,  val); //// vec4(texture(transfer_fcn, vec2(val, 0.5)).rgb, val);
-    // if (dist < 0.2) {
-    //   val = 1.0;
-    //   voxel_color = vec4(1.0, 0.0, 1.0,  val);
-    // }
+  
+    if (property == 0.0) { // empty voxel
+      voxel_color = vec4(0.0, 0.0, 0.0, 0.0002); //juster alpha her for fargen på tomme voxler 
+    }
+          // if (property == 0.0) {
+          //   discard;
+          //   return;
+          // }
 
 
 
