@@ -40,8 +40,7 @@ const unit_box = new Float32Array([
 ]);
 
 
-//lines = lines.map(x => x - 0.5);
-
+/* eslint-disable */
 const normals = new Float32Array([
     0, 0, -1, 0, 0, -1 ,0, 0, -1,  // bot
     0, 0, -1, 0, 0, -1 ,0, 0, -1,
@@ -63,6 +62,7 @@ const normals = new Float32Array([
     0, 1, 0,  0, 1, 0,  0, 1, 0,  // back
     0, 1, 0,  0, 1, 0,  0, 1, 0,
 ]);
+/* eslint-enable */
 
 export interface VolumeLayerProps extends ExtendedLayerProps {
     //lines: number[]; // from pt , to pt.
@@ -73,14 +73,15 @@ export interface VolumeLayerProps extends ExtendedLayerProps {
     propertiesData: Float32Array;
     width: number;
     height: number;
+
+    alpha?: number;
 }
 
 const defaultProps = {
     name: "VolumeLayer",
     id: "volume-layer",
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-    //lines: [-100, -100, 0, 100, 100, 100],
-    //color: [0, 0, 0, 1],
+    alpha: 0.006,
 };
 
 export default class VolumeLayer extends Layer<VolumeLayerProps> {
@@ -115,11 +116,11 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
         const h = this.props.height;
         const maxValue = Math.max(...this.props.propertiesData);
         const minValue = Math.min(...this.props.propertiesData);
-        console.log("minValue=", minValue, " maxValue=", maxValue);
+        //console.log("minValue=", minValue, " maxValue=", maxValue);
 
         // Create 3D texture for volume data.
         // https://luma.gl/docs/api-reference/core/resources/texture
-        const n = 100;
+        const n = 128;
         const data = new Uint8Array(n * n * n);
         /* eslint-disable */
         for (let i = 0; i < n; i++)
@@ -132,7 +133,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             const p = this.props.propertiesData[Math.floor(j_data) * w + Math.floor(i_data)];
             const scaledP = 255 * (p - minValue) / (maxValue - minValue);
     
-            //data[index_cube] = data[index_cube] = p !== 0 && (j === 0 || j == 50) ? scaledP : 0;
+            //data[index_cube] = scaledP;
             data[index_cube] = data[index_cube] = p > -0.8 && p !== 0 
                                                && j > 35 && j < 65? scaledP : 0;
 
@@ -210,11 +211,11 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             isInstanced: false,
         });
 
-        console.log("Created volume layer model", this.context.viewport.target);
-        const cameraTarget = this.context.viewport.target; //[0.9, 0.5, 0.5]; // XXX
+        const cameraTarget = this.context.viewport.target;
         grids.shaderInputs.setProps({
             volume: {
                 cameraTarget,
+                alpha: this.props.alpha,
             },
         });
 
@@ -234,11 +235,13 @@ VolumeLayer.defaultProps = defaultProps;
 const volumeUniformsBlock = /*glsl*/ `\
 uniform volumeUniforms {
     vec3 cameraTarget;
+    float alpha;
 } volume;
 `;
 
 type VolumeUniformsType = {
     cameraTarget: [number, number, number];
+    alpha: number;
 };
 
 // NOTE: this must exactly the same name as in the uniform block
@@ -248,5 +251,6 @@ const volumeUniforms = {
     fs: volumeUniformsBlock,
     uniformTypes: {
         cameraTarget: "vec3<f32>",
+        alpha: "f32",
     },
 } as const satisfies ShaderModule<LayerProps, VolumeUniformsType>;
