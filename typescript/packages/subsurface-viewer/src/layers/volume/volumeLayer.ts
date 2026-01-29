@@ -1,6 +1,6 @@
 // Based on this article: https://www.willusher.io/webgl/2019/01/13/volume-rendering-with-webgl/
 
-import type { UpdateParameters } from "@deck.gl/core";  //  Color,
+import type { LayerProps, UpdateParameters } from "@deck.gl/core";  //  Color,
 import { COORDINATE_SYSTEM, Layer, project } from "@deck.gl/core";
 //import GL from "@luma.gl/constants";
 import { Model, Geometry } from "@luma.gl/engine";
@@ -13,6 +13,7 @@ import type { DeckGLLayerContext } from "../utils/layerTools";
 import type { Device } from "@luma.gl/core";
 //import { loadDataArray } from "../../utils";
 import { getImageData } from "../utils/colormapTools";
+import { ShaderModule } from "@luma.gl/shadertools";
 
 // Unit box.
 const s = 1;
@@ -89,7 +90,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
     }
 
     shouldUpdateState(): boolean {
-        return false;
+        return true;
     }
 
     updateState({ context }: UpdateParameters<this>): void {
@@ -190,7 +191,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
         const bindings = { propertyTexture, colorMapTexture };
 
         const color = [0.5, 0.5, 0.5, 0.5];
-        const grids = new Model(device, {
+        const grids = new Model(device, {  // XXX rename
             id: `${this.props.id}-grids`,
             vs: vertexShader,
             fs: fragmentShader,
@@ -205,8 +206,16 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             }),
             bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
             bindings,
-            modules: [project],
+            modules: [project, volumeUniforms],
             isInstanced: false,
+        });
+
+        console.log("Created volume layer model", this.context.viewport.target);
+        const cameraTarget = this.context.viewport.target; //[0.9, 0.5, 0.5]; // XXX
+        grids.shaderInputs.setProps({
+            volume: {
+                cameraTarget,
+            },
         });
 
         return {
@@ -219,3 +228,25 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
 
 VolumeLayer.layerName = "VolumeLayer";
 VolumeLayer.defaultProps = defaultProps;
+
+
+// local shader module for the uniforms
+const volumeUniformsBlock = /*glsl*/ `\
+uniform volumeUniforms {
+    vec3 cameraTarget;
+} volume;
+`;
+
+type VolumeUniformsType = {
+    cameraTarget: [number, number, number];
+};
+
+// NOTE: this must exactly the same name as in the uniform block
+const volumeUniforms = {
+    name: "volume",
+    vs: volumeUniformsBlock,
+    fs: volumeUniformsBlock,
+    uniformTypes: {
+        cameraTarget: "vec3<f32>",
+    },
+} as const satisfies ShaderModule<LayerProps, VolumeUniformsType>;

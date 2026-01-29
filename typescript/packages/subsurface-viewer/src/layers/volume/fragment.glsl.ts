@@ -33,7 +33,7 @@ vec2 intersect_box(vec3 orig, vec3 dir) {
 void main(void) {
   vec3 view_direction = normalize(position_commonspace - cameraPosition);
   vec3 ray_dir = normalize(view_direction);
-  vec3 eye = cameraPosition + vec3(0.5, 0.5, 0.5); // move eye to center of volume
+  vec3 eye = cameraPosition + volume.cameraTarget; // + vec3(0.5, 0.5, 0.5); // move eye to center of volume
 
 
   // front face culling (to avoid doubling of colors)
