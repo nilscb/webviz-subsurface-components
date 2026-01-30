@@ -61,7 +61,6 @@ const VolumeComponent: React.FC<{
     });
 
     const camPos = (input: ViewStateType) => {
-        console.log("Camera position changed:", input);
         setCamera(input);
     };
 
