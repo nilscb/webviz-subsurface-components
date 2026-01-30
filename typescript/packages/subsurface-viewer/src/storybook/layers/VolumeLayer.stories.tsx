@@ -1,14 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 
-import type { SubsurfaceViewerProps } from "../../SubsurfaceViewer";
+import type { SubsurfaceViewerProps, ViewStateType } from "../../SubsurfaceViewer";
 import SubsurfaceViewer from "../../SubsurfaceViewer";
 
 
 import VolumeLayer from "../../layers/volume/volumeLayer";
 import AxesLayer from "../../layers/axes/axesLayer";
 import { loadDataArray } from "../../utils";
+import { OrbitView } from "@deck.gl/core";
 //import { default3DViews } from "../sharedSettings";
 
 const stories: Meta = {
@@ -18,18 +19,6 @@ const stories: Meta = {
 };
 
 export default stories;
-
-const parameters = {
-    docs: {
-        docs: {
-            inlineStories: false,
-            iframeHeight: 500,
-        },
-        description: {
-            story: "Simgrid.",
-        },
-    },
-};
 
 // fetch data
 const propertiesData = await loadDataArray(
@@ -57,34 +46,25 @@ const axesLayer = new AxesLayer({
     // }
 });
 
-// export const VolumeStory: StoryObj<typeof SubsurfaceViewer> = {
-//     args: {
-//         id: "volume-layer",
-//         cameraPosition: {
-//             rotationOrbit: 45,
-//             rotationX: 25,
-//             //zoom: [-100, -100, -10, 100, 100, 60] as BoundingBox3D,
-//             zoom: 8,
-//             target: [0.5, 0.5, 0.5],
-//         },
-//         layers: [volumeLayer, axesLayer],
-//         views: {
-//             layout: [1, 1] as [number, number],
-//             viewports: [
-//                 {
-//                     id: "view_1",
-//                     show3D: true,
-//                 },
-//             ],
-//         },
-//     },
-//     render: (args) => <SubsurfaceViewer {...args} />,
-// };
-
+//getCameraPosition
 const VolumeComponent: React.FC<{
     alpha: number;
     smooth: boolean;
+    planeOffset: number;
 }> = (args) => {
+
+    const [camera, setCamera] = useState<ViewStateType>({
+        rotationOrbit: 45,
+        rotationX: 25,
+        zoom: 8.5,
+        target: [0.5, 0.5, 0.5],
+    });
+
+    const camPos = (input: ViewStateType) => {
+        console.log("Camera position changed:", input);
+        setCamera(input);
+    };
+
     const subsurfaceViewerArgs = {
         id: "map",
         layers: [
@@ -97,21 +77,18 @@ const VolumeComponent: React.FC<{
                 height: 103,
                 smooth: args.smooth,
                 alpha: args.alpha,
+                plane_offset: args.planeOffset,
             }),
             axesLayer,
         ],
-        cameraPosition: {
-            rotationOrbit: 45,
-            rotationX: 25,
-            zoom: 8.5,
-            target: [0.5, 0.5, 0.5],
-        },
+        getCameraPosition: camPos,
+        cameraPosition: camera,
         views: {
             layout: [1, 1] as [number, number],
             viewports: [
                 {
                     id: "view_1",
-                    show3D: true,
+                    viewType: OrbitView,
                 },
             ],
         },
@@ -119,14 +96,18 @@ const VolumeComponent: React.FC<{
     return <SubsurfaceViewer {...subsurfaceViewerArgs} />;
 };
 
-export const TypedArrayInput: StoryObj<typeof VolumeComponent> = {
+export const VolumeViewer: StoryObj<typeof VolumeComponent> = {
     args: {
         alpha: 0.006,
         smooth: true,
+        planeOffset: 1.732,
     },
     argTypes: {
         alpha: {
             control: { type: "range", min: 0.001, max: 0.01, step: 0.001 },
+        },
+        planeOffset: {
+            control: { type: "range", min: 0.0, max: 1.732, step: 0.01 },
         },
         smooth: {
             control: { type: "boolean" },

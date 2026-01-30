@@ -29,11 +29,25 @@ vec2 intersect_box(vec3 orig, vec3 dir) {
 	return vec2(t0, t1);
 }
 
+// GLSL Intersection Function Example
+float intersectPlane(vec3 rayOrigin, vec3 rayDir, vec3 planeNormal, float planeDist) {
+    float denom = dot(rayDir, planeNormal);
+    if (abs(denom) > 1e-6) { // Check if not parallel
+        return (planeDist - dot(rayOrigin, planeNormal)) / denom;
+    }
+    return -1.0; // No intersection
+}
+
 
 void main(void) {
+  // plane definition
+  float plane_d = volume.plane_offset; // distance from origin
+  vec3 plane_n = normalize(vec3(1.0, 1.0, 1.0)); // normal vector
+
+
   vec3 view_direction = normalize(position_commonspace - cameraPosition);
   vec3 ray_dir = normalize(view_direction);
-  vec3 eye = cameraPosition + volume.cameraTarget; // + vec3(0.5, 0.5, 0.5); // move eye to center of volume
+  vec3 eye = cameraPosition + volume.cameraTarget;
 
 
   // front face culling (to avoid doubling of colors)
@@ -43,12 +57,31 @@ void main(void) {
     return;
   }
 
+  // If intersection wtih cut plane, calculate color at intersection and return.
+  bool is_plane = false;
+  vec4 cut_plane_color;
+  float t_plane = intersectPlane(eye, ray_dir, plane_n, plane_d);
+	vec3 p_plane = eye + t_plane * ray_dir; // intersection point
+	if (p_plane.x >= 0.0 && p_plane.x <= 1.0 &&
+      p_plane.y >= 0.0 && p_plane.y <= 1.0 &&
+      p_plane.z >= 0.0 && p_plane.z <= 1.0) {
+		vec4 texture_val = texture(propertyTexture, p_plane);
+		float property = texture_val.r;
+		if (property != 0.0) {
+    	is_plane = true;
+      vec4 color_map_val = texture(colorMapTexture, vec3(property, 0.5, 0.5));
+      cut_plane_color = vec4(color_map_val.rgb, 1.0);
+		}
+	}
 
+
+
+  // Compute intersection of ray with unit cube
   vec2 t_hit = intersect_box(eye, ray_dir);
   bool hit = t_hit.x < t_hit.y; // XXX tror det er e bug i orginalen  her den bruker ">"
   if (!hit) {
-	discard;
-	return;
+    discard;
+    return;
   }
 
   // We don't want to sample voxels behind the eye if it's
@@ -66,40 +99,42 @@ void main(void) {
   vec3 p = eye + t_hit.x * ray_dir;
   fragColor = vec4(0.0, 0.0, 0.0, 0.0);
   for (float t = t_hit.x; t < t_hit.y; t += dt) {
-	// Step 4.1: Sample the volume, and color it by the transfer function.
-	// Note that here we don't use the opacity from the transfer function,
-	// and just use the sample value as the opacity
+    // Step 4.1: Sample the volume, and color it by the transfer function.
+    // Note that here we don't use the opacity from the transfer function,
+    // and just use the sample value as the opacity
 
     // Pick color from texture.
     vec4 texture_val = texture(propertyTexture, p);
     float property = texture_val.r;
 
     vec4 color_map_val = texture(colorMapTexture, vec3(property, 0.5, 0.5));
-
-	// XXX HACK TMP
-    if (property > 0.5 && property < 0.6) { // make this interval more transparent.
-      alpha *= 0.95;
-    }
     vec4 voxel_color = vec4(color_map_val.rgb, alpha);
 
-  
-    if (property == 0.0) { // empty voxel
+    // Make voxels on plane positive side transparent.
+    float e = plane_n[0] * p[0] + plane_n[1] * p[1] + plane_n[2] * p[2] - plane_d;
+    if (property == 0.0 || e > 0.0 ) { // empty voxel.  e> 0 -> p on positive side of plane
       voxel_color = vec4(0.0, 0.0, 0.0, 0.00015); //juster alpha her for fargen på tomme voxler
-      //discard;
-      //return;
     }
 
-	// Step 4.2: Accumulate the color and opacity using the front-to-back
-	// compositing equation
-	fragColor.rgb += (1.0 - fragColor.a) * voxel_color.a * voxel_color.rgb;
-	fragColor.a += (1.0 - fragColor.a) * voxel_color.a;
+    // If we have reached the cut plane, use the cut plane color and break.
+    if (t > t_plane && is_plane) {
+      voxel_color = cut_plane_color;
+      // Accumulate the color and opacity using the front-to-back compositing equation.
+      fragColor.rgb += (1.0 - fragColor.a) * voxel_color.a * voxel_color.rgb;
+      fragColor.a += (1.0 - fragColor.a) * voxel_color.a;
+      break;
+    }
 
-	// Optimization: break out of the loop when the color is near opaque
-	if (fragColor.a >= 0.95) {
-		break;
-	}
+    // Accumulate the color and opacity using the front-to-back compositing equation.
+    fragColor.rgb += (1.0 - fragColor.a) * voxel_color.a * voxel_color.rgb;
+    fragColor.a += (1.0 - fragColor.a) * voxel_color.a;
 
-	p += ray_dir * dt;
+    // Optimization: break out of the loop when the color is near opaque
+    if (fragColor.a >= 0.95) {
+      break;
+    }
+
+    p += ray_dir * dt;
   }
 }
 `;

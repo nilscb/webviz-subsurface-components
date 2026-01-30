@@ -7,15 +7,13 @@ import { Model, Geometry } from "@luma.gl/engine";
 import fragmentShader from "./fragment.glsl";
 import vertexShader from "./vertex.glsl";
 import type { ExtendedLayerProps } from "../utils/layerTools";
-
 import type { DeckGLLayerContext } from "../utils/layerTools";
-
 import type { Device } from "@luma.gl/core";
-//import { loadDataArray } from "../../utils";
 import { getImageData } from "../utils/colormapTools";
-import { ShaderModule } from "@luma.gl/shadertools";
+import type { ShaderModule } from "@luma.gl/shadertools";
 
-// Unit box.
+// Unit box with normals.
+/* eslint-disable */
 const s = 1;
 const unit_box = new Float32Array([
     0, 0, 0,  s, 0, 0,  0, s, 0,  // bot Z
@@ -39,8 +37,6 @@ const unit_box = new Float32Array([
     0, s, 0,   0, s, s,  s, s, s,
 ]);
 
-
-/* eslint-disable */
 const normals = new Float32Array([
     0, 0, -1, 0, 0, -1 ,0, 0, -1,  // bot
     0, 0, -1, 0, 0, -1 ,0, 0, -1,
@@ -65,16 +61,12 @@ const normals = new Float32Array([
 /* eslint-enable */
 
 export interface VolumeLayerProps extends ExtendedLayerProps {
-    //lines: number[]; // from pt , to pt.
-    //color: Color;
-
     smooth: boolean;
-
     propertiesData: Float32Array;
     width: number;
     height: number;
-
     alpha?: number;
+    plane_offset?: number;
 }
 
 const defaultProps = {
@@ -82,6 +74,7 @@ const defaultProps = {
     id: "volume-layer",
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     alpha: 0.006,
+    plane_offset: 1.732, // sqrt(3)
 };
 
 export default class VolumeLayer extends Layer<VolumeLayerProps> {
@@ -95,7 +88,6 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
     }
 
     updateState({ context }: UpdateParameters<this>): void {
-        //const { gl } = context;
         this.setState(this._getModels(context.device));
     }
 
@@ -104,7 +96,6 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             [x: string]: Partial<Record<string, unknown> | undefined>;
         }>
     ): void {
-        // this.state.model?.setBindings({ propertyTexture: propertyTexture, colorMapTexture: colorMapTexture });
         super.setShaderModuleProps({
             ...args,
         });
@@ -119,7 +110,6 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
         //console.log("minValue=", minValue, " maxValue=", maxValue);
 
         // Create 3D texture for volume data.
-        // https://luma.gl/docs/api-reference/core/resources/texture
         const n = 128;
         const data = new Uint8Array(n * n * n);
         /* eslint-disable */
@@ -136,22 +126,8 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             //data[index_cube] = scaledP;
             data[index_cube] = data[index_cube] = p > -0.8 && p !== 0 
                                                && j > 35 && j < 65? scaledP : 0;
-
-            // // Create a sphere in the volume
-            // const cx = n / 2;
-            // const cy = n / 2;
-            // const cz = n / 2;
-            // const radius = n / 2.5;
-            // const dist = Math.sqrt((i - cx) * (i - cx) + (j - cy) * (j - cy) + (k - cz) * (k - cz));
-            // if (dist < radius) {
-            //     data[index] = 255;
-            // } else {
-            //     data[index] = 0;
-            // }
-
         }
         /* eslint-enable */
-
 
         const propertyTexture = this.context.device.createTexture({
             sampler: {
@@ -183,7 +159,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             depth: 1,
             format: "rgb8unorm-webgl",
             data: getImageData({
-                colormapName: "seismic",  // seismic  physics rainbow
+                colormapName: "seismic", // seismic  physics rainbow
                 colorTables: (this.context as DeckGLLayerContext).userData
                     .colorTables,
             }),
@@ -192,7 +168,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
         const bindings = { propertyTexture, colorMapTexture };
 
         const color = [0.5, 0.5, 0.5, 0.5];
-        const grids = new Model(device, {  // XXX rename
+        const grids = new Model(device, {
             id: `${this.props.id}-grids`,
             vs: vertexShader,
             fs: fragmentShader,
@@ -212,10 +188,12 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
         });
 
         const cameraTarget = this.context.viewport.target;
+        const plane_offset = this.props.plane_offset ?? 1;
         grids.shaderInputs.setProps({
             volume: {
                 cameraTarget,
                 alpha: this.props.alpha,
+                plane_offset,
             },
         });
 
@@ -230,18 +208,19 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
 VolumeLayer.layerName = "VolumeLayer";
 VolumeLayer.defaultProps = defaultProps;
 
-
 // local shader module for the uniforms
 const volumeUniformsBlock = /*glsl*/ `\
 uniform volumeUniforms {
     vec3 cameraTarget;
     float alpha;
+    float plane_offset;
 } volume;
 `;
 
 type VolumeUniformsType = {
     cameraTarget: [number, number, number];
     alpha: number;
+    plane_offset: number;
 };
 
 // NOTE: this must exactly the same name as in the uniform block
@@ -252,5 +231,6 @@ const volumeUniforms = {
     uniformTypes: {
         cameraTarget: "vec3<f32>",
         alpha: "f32",
+        plane_offset: "f32",
     },
 } as const satisfies ShaderModule<LayerProps, VolumeUniformsType>;
