@@ -1,3 +1,14 @@
+## 1.16.0 (2026-02-06)
+
+### 🚀 Features
+
+- Subsurface viewer - Extended features for the Wells-layer ([#2696](https://github.com/equinor/webviz-subsurface-components/pull/2696))
+
+### ❤️ Thank You
+
+- Anders Rantala Hunderi
+- Håvard Bjerke
+
 ## 1.15.86 (2026-01-05)
 
 ### 🧱 Updated Dependencies
