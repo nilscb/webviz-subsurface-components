@@ -63,8 +63,9 @@ const normals = new Float32Array([
 export interface VolumeLayerProps extends ExtendedLayerProps {
     smooth: boolean;
     propertiesData: Float32Array;
-    width: number;
-    height: number;
+    ni: number;
+    nj: number;
+    nk: number;
     alpha?: number;
     plane_offset?: number;
 }
@@ -103,30 +104,18 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
 
     //eslint-disable-next-line
     _getModels(device: Device) {
-        const w = this.props.width;
-        const h = this.props.height;
-        const maxValue = Math.max(...this.props.propertiesData);
-        const minValue = Math.min(...this.props.propertiesData);
-        //console.log("minValue=", minValue, " maxValue=", maxValue);
+        const ni = this.props.ni;
+        const nj = this.props.nj;
+        const nk = this.props.nk;
+        // const maxValue = this.props.propertiesData.reduce((a, b) => Math.max(a, b), -Infinity);
+        // const minValue = this.props.propertiesData.reduce((a, b) => Math.min(a, b), Infinity);
+        // console.log("minValue=", minValue, " maxValue=", maxValue);
+        //minValue= -11589.6484375 13943.7744140625
 
-        // Create 3D texture for volume data.
-        const n = 128;
-        const data = new Uint8Array(n * n * n);
+        //console.log("VolumeLayer: ni=", ni, " nj=", nj, " nk=", nk);
+
+
         /* eslint-disable */
-        for (let i = 0; i < n; i++)
-        for (let j = 0; j < n; j++)
-        for (let k = 0; k < n; k++) {
-            const index_cube = i * n * n + j * n + k;
-
-            const i_data = w * (k / n);
-            const j_data = h * (i / n);
-            const p = this.props.propertiesData[Math.floor(j_data) * w + Math.floor(i_data)];
-            const scaledP = 255 * (p - minValue) / (maxValue - minValue);
-    
-            //data[index_cube] = scaledP;
-            data[index_cube] = data[index_cube] = p > -0.8 && p !== 0 
-                                               && j > 35 && j < 65? scaledP : 0;
-        }
         /* eslint-enable */
 
         const propertyTexture = this.context.device.createTexture({
@@ -138,11 +127,11 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
                 magFilter: this.props.smooth ? "linear" : "nearest",
             },
             dimension: "3d",
-            width: n,
-            height: n,
-            depth: n,
-            format: "r8unorm", //"rgba8unorm",
-            data,
+            width: ni,  // x axis ??
+            height: nj, // y axis
+            depth: nk, //nk,  // z axis
+            format: "r32float", //  r8unorm "rgba8unorm",
+            data: this.props.propertiesData,
         });
 
         // Color map texture.
@@ -150,7 +139,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             sampler: {
                 addressModeU: "clamp-to-edge",
                 addressModeV: "clamp-to-edge",
-                minFilter: "linear",
+                minFilter: "linear",  // nearest linear
                 magFilter: "linear",
             },
             dimension: "3d", // both textures of same dimension or luma complains
@@ -159,7 +148,7 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             depth: 1,
             format: "rgb8unorm-webgl",
             data: getImageData({
-                colormapName: "seismic", // seismic  physics rainbow
+                colormapName: "seismic", // seismic  physics rainbow Seismic YRGBC
                 colorTables: (this.context as DeckGLLayerContext).userData
                     .colorTables,
             }),

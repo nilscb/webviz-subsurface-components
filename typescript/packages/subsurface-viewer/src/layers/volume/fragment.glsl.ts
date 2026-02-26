@@ -29,7 +29,12 @@ vec2 intersect_box(vec3 orig, vec3 dir) {
 	return vec2(t0, t1);
 }
 
-// GLSL Intersection Function Example
+bool invisible_property(float property) {
+    return property >= -500.0 && property <= 500.0;
+    //return !((property >= -2300.0  && property <= -2000.0) || (property >= 2000.0  && property <= 2600.0));
+   //return !(property >= 2000.0  && property <= 2600.0);
+} 
+
 float intersectPlane(vec3 rayOrigin, vec3 rayDir, vec3 planeNormal, float planeDist) {
     float denom = dot(rayDir, planeNormal);
     if (abs(denom) > 1e-6) { // Check if not parallel
@@ -42,7 +47,7 @@ float intersectPlane(vec3 rayOrigin, vec3 rayDir, vec3 planeNormal, float planeD
 void main(void) {
   // plane definition
   float plane_d = volume.plane_offset; // distance from origin
-  vec3 plane_n = normalize(vec3(1.0, 1.0, 1.0)); // normal vector
+  vec3 plane_n = normalize(vec3(1.0, 1.0, 1.0));  //normalize(vec3(1.0, 1.0, 1.0)); // normal vector
 
 
   vec3 view_direction = normalize(position_commonspace - cameraPosition);
@@ -67,14 +72,13 @@ void main(void) {
       p_plane.z >= 0.0 && p_plane.z <= 1.0) {
 		vec4 texture_val = texture(propertyTexture, p_plane);
 		float property = texture_val.r;
-		if (property != 0.0) {
-    	is_plane = true;
-      vec4 color_map_val = texture(colorMapTexture, vec3(property, 0.5, 0.5));
-      cut_plane_color = vec4(color_map_val.rgb, 1.0);
-		}
+    float minValue= -11589.684375; // XXX DISSE MAA VARE UNIFORMS
+    float maxValue= 13943.7744140625;  // XXX DISSE MAA VARE UNIFORMS
+    float property_normalized = (property - minValue) / (maxValue - minValue);
+    vec4 color_map_val = texture(colorMapTexture, vec3(property_normalized, 0.5, 0.5));
+    cut_plane_color = color_map_val;
+    is_plane = !invisible_property(property);
 	}
-
-
 
   // Compute intersection of ray with unit cube
   vec2 t_hit = intersect_box(eye, ray_dir);
@@ -95,7 +99,7 @@ void main(void) {
 
 
   // Starting from the entry point, march the ray through the volume and sample it.
-  float alpha = volume.alpha; // 0.02
+  float alpha = volume.alpha; // 0.02  1.0
   vec3 p = eye + t_hit.x * ray_dir;
   fragColor = vec4(0.0, 0.0, 0.0, 0.0);
   for (float t = t_hit.x; t < t_hit.y; t += dt) {
@@ -107,12 +111,15 @@ void main(void) {
     vec4 texture_val = texture(propertyTexture, p);
     float property = texture_val.r;
 
-    vec4 color_map_val = texture(colorMapTexture, vec3(property, 0.5, 0.5));
+    float minValue= -11589.684375; // XXX DISSE MAA VARE UNIFORMS
+    float maxValue= 13943.7744140625;  // XXX DISSE MAA VARE UNIFORMS
+    float property_normalized = (property - minValue) / (maxValue - minValue);
+    vec4 color_map_val = texture(colorMapTexture, vec3(property_normalized, 0.5, 0.5));
     vec4 voxel_color = vec4(color_map_val.rgb, alpha);
 
-    // Make voxels on plane positive side transparent.
+    // Make voxels on planes positive side transparent.
     float e = plane_n[0] * p[0] + plane_n[1] * p[1] + plane_n[2] * p[2] - plane_d;
-    if (property == 0.0 || e > 0.0 ) { // empty voxel.  e> 0 -> p on positive side of plane
+    if (invisible_property(property) || e > 0.0 ) { // (property == 0.0 || e > 0.0 ) { // empty voxel.  e> 0 -> p on positive side of plane
       voxel_color = vec4(0.0, 0.0, 0.0, 0.00015); //juster alpha her for fargen på tomme voxler
     }
 

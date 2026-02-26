@@ -20,21 +20,12 @@ const stories: Meta = {
 
 export default stories;
 
-// fetch data
-const propertiesData = await loadDataArray(
-    "seismic_Z0_115_103.float32",
-    Float32Array
-);
-
-const volumeLayer = new VolumeLayer({
-    id: "volume-layer1",
-    name: "Volume Layer",
-    parameters: { cull: false },  // viktig så vi ser innsiden av kuben
-    propertiesData: propertiesData!,
-    width: 115,
-    height: 103,
-    smooth: true,
-});
+const propertiesData = await loadDataArray("seismic_volume.bin", Float32Array);
+const ni = propertiesData[0];
+const nj = propertiesData[1];
+const nk = propertiesData[2];
+//console.log("ni", ni, "nj", nj, "nk", nk);
+//console.log("propertiesData", propertiesData);
 
 const axesLayer = new AxesLayer({
     //"@@type": "AxesLayer",
@@ -71,9 +62,10 @@ const VolumeComponent: React.FC<{
                 id: "volume-layer1",
                 name: "Volume Layer",
                 parameters: { cull: false }, // viktig så vi ser innsiden av kuben
-                propertiesData: propertiesData!,
-                width: 115,
-                height: 103,
+                propertiesData: propertiesData!.subarray(3), // skip first 3 values which are ni, nj, nk
+                ni,
+                nj,
+                nk,
                 smooth: args.smooth,
                 alpha: args.alpha,
                 plane_offset: args.planeOffset,
