@@ -44,11 +44,18 @@ const VolumeComponent: React.FC<{
     planeOffset: number;
 }> = (args) => {
 
+    const xMin = 0;
+    const xMax = 1;
+    const yMin = 0;
+    const yMax = 1;
+    const zMin = 0;
+    const zMax = 1;
+
     const [camera, setCamera] = useState<ViewStateType>({
         rotationOrbit: 45,
         rotationX: 25,
         zoom: 8.5,
-        target: [0.5, 0.5, 0.5],
+        target: [(xMax - xMin) / 2, (yMax - yMin) / 2, (zMax - zMin) / 2],  //  [0.5, 0.5, 0.5],
     });
 
     const camPos = (input: ViewStateType) => {
@@ -66,6 +73,14 @@ const VolumeComponent: React.FC<{
                 ni,
                 nj,
                 nk,
+
+                xMin,
+                xMax,
+                yMin,
+                yMax,
+                zMin,
+                zMax,
+
                 smooth: args.smooth,
                 alpha: args.alpha,
                 plane_offset: args.planeOffset,

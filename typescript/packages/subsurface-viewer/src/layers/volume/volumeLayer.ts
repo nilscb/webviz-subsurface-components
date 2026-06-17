@@ -66,6 +66,14 @@ export interface VolumeLayerProps extends ExtendedLayerProps {
     ni: number;
     nj: number;
     nk: number;
+
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+    zMin: number;
+    zMax: number;
+
     alpha?: number;
     plane_offset?: number;
 }
@@ -76,15 +84,30 @@ const defaultProps = {
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     alpha: 0.006,
     plane_offset: 1.732, // sqrt(3)
+
+    xMin: 0,
+    xMax: 1,
+    yMin: 0,
+    yMax: 1,
+    zMin: 0,
+    zMax: 1,
 };
 
 export default class VolumeLayer extends Layer<VolumeLayerProps> {
+    get isLoaded(): boolean {
+        //const isLoaded = super.isLoaded && typeof this.state === "defined" && Object.keys(this.state).length > 0;
+        //console.log("VolumeLayer isLoaded=", super.isLoaded,  Object.keys(this.state ?? {}).length > 0);
+        return true; //isLoaded;
+    }
+
     initializeState(context: DeckGLLayerContext): void {
         const gl = context.device;
         this.setState(this._getModels(gl));
     }
 
     shouldUpdateState(): boolean {
+        //console.log("state", this.state);
+        //return Object.keys(this.state ?? {}).length === 0;
         return true;
     }
 
@@ -203,6 +226,13 @@ uniform volumeUniforms {
     vec3 cameraTarget;
     float alpha;
     float plane_offset;
+
+    float xMin;
+    float xMax;
+    float yMin;
+    float yMax;
+    float zMin;
+    float zMax;
 } volume;
 `;
 
@@ -210,6 +240,12 @@ type VolumeUniformsType = {
     cameraTarget: [number, number, number];
     alpha: number;
     plane_offset: number;
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+    zMin: number;
+    zMax: number;
 };
 
 // NOTE: this must exactly the same name as in the uniform block
@@ -221,5 +257,11 @@ const volumeUniforms = {
         cameraTarget: "vec3<f32>",
         alpha: "f32",
         plane_offset: "f32",
+        xMin: "f32",
+        xMax: "f32",
+        yMin: "f32",
+        yMax: "f32",
+        zMin: "f32",
+        zMax: "f32",
     },
 } as const satisfies ShaderModule<LayerProps, VolumeUniformsType>;

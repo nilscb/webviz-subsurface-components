@@ -851,10 +851,14 @@ const Map: React.FC<MapProps> = ({
                     );
                 });
                 const loaded = visibleLayers?.filter(
-                    (layer) => (layer as Layer)?.isLoaded
+                    (layer) => { 
+                        //console.log("Checking layer ", (layer as Layer)?.id, " loaded: ", (layer as Layer)?.isLoaded);
+                        return (layer as Layer)?.isLoaded;
+                    }
                 ).length;
                 // ceil to ensure reaching 100 (important to check if done)
                 progress = Math.ceil((100 * loaded) / visibleLayers?.length);
+                //console.log("     Rendering progress: ", loaded, "/", visibleLayers);
             }
 
             setLoadingProgress(progress);
