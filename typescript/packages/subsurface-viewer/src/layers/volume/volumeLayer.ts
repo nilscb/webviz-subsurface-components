@@ -58,6 +58,28 @@ const normals = new Float32Array([
     0, 1, 0,  0, 1, 0,  0, 1, 0,  // back
     0, 1, 0,  0, 1, 0,  0, 1, 0,
 ]);
+
+function makeBox(
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    zMin: number,
+    zMax: number
+): Float32Array {
+    const xScale = xMax - xMin;
+    const yScale = yMax - yMin;
+    const zScale = zMax - zMin;
+
+    const box = new Float32Array(unit_box.length);
+    for (let i = 0; i < unit_box.length; i += 3) {
+        box[i + 0] = unit_box[i + 0] * xScale + xMin;
+        box[i + 1] = unit_box[i + 1] * yScale + yMin;
+        box[i + 2] = unit_box[i + 2] * zScale + zMin;
+    }
+    return box;
+}
+
 /* eslint-enable */
 
 export interface VolumeLayerProps extends ExtendedLayerProps {
@@ -130,9 +152,9 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
         const ni = this.props.ni;
         const nj = this.props.nj;
         const nk = this.props.nk;
-        // const maxValue = this.props.propertiesData.reduce((a, b) => Math.max(a, b), -Infinity);
-        // const minValue = this.props.propertiesData.reduce((a, b) => Math.min(a, b), Infinity);
-        // console.log("minValue=", minValue, " maxValue=", maxValue);
+        const maxValue = this.props.propertiesData.reduce((a, b) => Math.max(a, b), -Infinity);
+        const minValue = this.props.propertiesData.reduce((a, b) => Math.min(a, b), Infinity);
+        //console.log("minValue=", minValue, " maxValue=", maxValue);
         //minValue= -11589.6484375 13943.7744140625
 
         //console.log("VolumeLayer: ni=", ni, " nj=", nj, " nk=", nk);
@@ -206,6 +228,15 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
                 cameraTarget,
                 alpha: this.props.alpha,
                 plane_offset,
+                xMin: this.props.xMin,
+                xMax: this.props.xMax,
+                yMin: this.props.yMin,
+                yMax: this.props.yMax,
+                zMin: this.props.zMin,
+                zMax: this.props.zMax,
+
+                minValue,
+                maxValue,
             },
         });
 
@@ -226,13 +257,14 @@ uniform volumeUniforms {
     vec3 cameraTarget;
     float alpha;
     float plane_offset;
-
     float xMin;
     float xMax;
     float yMin;
     float yMax;
     float zMin;
     float zMax;
+    float minValue;
+    float maxValue;
 } volume;
 `;
 
@@ -246,6 +278,8 @@ type VolumeUniformsType = {
     yMax: number;
     zMin: number;
     zMax: number;
+    minValue: number;
+    maxValue: number;
 };
 
 // NOTE: this must exactly the same name as in the uniform block
@@ -263,5 +297,7 @@ const volumeUniforms = {
         yMax: "f32",
         zMin: "f32",
         zMax: "f32",
+        minValue: "f32",
+        maxValue: "f32",
     },
 } as const satisfies ShaderModule<LayerProps, VolumeUniformsType>;

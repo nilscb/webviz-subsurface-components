@@ -10,8 +10,8 @@ flat out vec3 normals_commonspace;
 out vec3 position_commonspace;
 flat out vec3 cameraPosition;
 
-void main(void) {
 
+void main(void) {
    position_commonspace = project_position(positions);
 
    normals_commonspace = normals;

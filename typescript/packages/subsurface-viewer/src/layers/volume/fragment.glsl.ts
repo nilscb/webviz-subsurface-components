@@ -16,6 +16,8 @@ uniform sampler3D propertyTexture;
 uniform sampler3D colorMapTexture;
 
 
+
+// From https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 vec2 intersect_box(vec3 orig, vec3 dir) {
 	const vec3 box_min = vec3(0);
 	const vec3 box_max = vec3(1);
@@ -72,9 +74,7 @@ void main(void) {
       p_plane.z >= 0.0 && p_plane.z <= 1.0) {
 		vec4 texture_val = texture(propertyTexture, p_plane);
 		float property = texture_val.r;
-    float minValue= -11589.684375; // XXX DISSE MAA VARE UNIFORMS
-    float maxValue= 13943.7744140625;  // XXX DISSE MAA VARE UNIFORMS
-    float property_normalized = (property - minValue) / (maxValue - minValue);
+    float property_normalized = (property - volume.minValue) / (volume.maxValue - volume.minValue);
     vec4 color_map_val = texture(colorMapTexture, vec3(property_normalized, 0.5, 0.5));
     cut_plane_color = color_map_val;
     is_plane = !invisible_property(property);
@@ -111,9 +111,7 @@ void main(void) {
     vec4 texture_val = texture(propertyTexture, p);
     float property = texture_val.r;
 
-    float minValue= -11589.684375; // XXX DISSE MAA VARE UNIFORMS
-    float maxValue= 13943.7744140625;  // XXX DISSE MAA VARE UNIFORMS
-    float property_normalized = (property - minValue) / (maxValue - minValue);
+    float property_normalized = (property - volume.minValue) / (volume.maxValue - volume.minValue);
     vec4 color_map_val = texture(colorMapTexture, vec3(property_normalized, 0.5, 0.5));
     vec4 voxel_color = vec4(color_map_val.rgb, alpha);
 
