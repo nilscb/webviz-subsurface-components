@@ -27,10 +27,17 @@ const nk = propertiesData[2];
 //console.log("ni", ni, "nj", nj, "nk", nk);
 //console.log("propertiesData", propertiesData);
 
+const xMin = 1;
+const xMax = 3;
+const yMin = 0;
+const yMax = 1;
+const zMin = 0;
+const zMax = 1;
+
 const axesLayer = new AxesLayer({
     //"@@type": "AxesLayer",
     id: "axes-layer2",
-    bounds: [0, 0, 0, 1, 1, 1],
+    bounds: [xMin, yMin, zMin, xMax, yMax, zMax],
     ZIncreasingDownwards: false,
     // parameters: {
     //     depthTest: false // Disables depth testing for this layer
@@ -44,18 +51,15 @@ const VolumeComponent: React.FC<{
     planeOffset: number;
 }> = (args) => {
 
-    const xMin = 0;
-    const xMax = 1;
-    const yMin = 0;
-    const yMax = 1;
-    const zMin = 0;
-    const zMax = 1;
-
     const [camera, setCamera] = useState<ViewStateType>({
         rotationOrbit: 45,
         rotationX: 25,
         zoom: 8.5,
-        target: [(xMax - xMin) / 2, (yMax - yMin) / 2, (zMax - zMin) / 2],  //  [0.5, 0.5, 0.5],
+        target: [
+            xMin + (xMax - xMin) / 2,
+            yMin + (yMax - yMin) / 2,
+            zMin + (zMax - zMin) / 2,
+        ], //  [0.5, 0.5, 0.5],
     });
 
     const camPos = (input: ViewStateType) => {

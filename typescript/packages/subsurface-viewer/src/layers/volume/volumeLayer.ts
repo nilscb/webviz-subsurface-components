@@ -201,6 +201,15 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
 
         const bindings = { propertyTexture, colorMapTexture };
 
+        const box = makeBox(
+            this.props.xMin,
+            this.props.xMax,
+            this.props.yMin,
+            this.props.yMax,
+            this.props.zMin,
+            this.props.zMax
+        );
+
         const color = [0.5, 0.5, 0.5, 0.5];
         const grids = new Model(device, {
             id: `${this.props.id}-grids`,
@@ -210,10 +219,10 @@ export default class VolumeLayer extends Layer<VolumeLayerProps> {
             geometry: new Geometry({
                 topology: "triangle-list",
                 attributes: {
-                    positions: { value: unit_box, size: 3 },
+                    positions: { value: box, size: 3 },
                     normals: { value: normals, size: 3 }, // Trengs for backface culling ellers blir fargene doblet.
                 },
-                vertexCount: unit_box.length / 3,
+                vertexCount: box.length / 3,
             }),
             bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
             bindings,

@@ -81,7 +81,14 @@ void main(void) {
 	// }
 
   // Compute intersection of ray with unit cube
-  vec2 t_hit = intersect_box(eye, ray_dir);
+  vec3 eye_unit_cube = (eye - vec3(volume.xMin, volume.yMin, volume.zMin)) / vec3(volume.xMax - volume.xMin, volume.yMax - volume.yMin, volume.zMax - volume.zMin);
+  //vec3 eye_unit_cube = (eye) / vec3(volume.xMax - volume.xMin, volume.yMax - volume.yMin, volume.zMax - volume.zMin);
+  // XXX ray_dir copilot:  should also be transformed to unit cube space, but since the cube is axis aligned and ray_dir is normalized it should not affect the intersection points.
+  //vec3 ray_dir_unit_cube = (ray_dir - vec3(volume.xMin, volume.yMin, volume.zMin)) / vec3(volume.xMax - volume.xMin, volume.yMax - volume.yMin, volume.zMax - volume.zMin);
+  vec3 ray_dir_unit_cube = ray_dir / vec3(volume.xMax - volume.xMin, volume.yMax - volume.yMin, volume.zMax - volume.zMin);
+  //vec3 ray_dir_unit_cube = ray_dir;
+
+ vec2 t_hit = intersect_box(eye_unit_cube, ray_dir_unit_cube);
   bool hit = t_hit.x < t_hit.y; // XXX tror det er e bug i orginalen  her den bruker ">"
   if (!hit) {
     discard;
@@ -94,13 +101,13 @@ void main(void) {
   t_hit.x = max(t_hit.x, 0.0);
 
   // Compute the step size to march through the volume grid
-  vec3 dt_vec = (1.0 / (vec3(1.0, 1.0, 1.0)) * abs(ray_dir));
+  vec3 dt_vec = (1.0 / (vec3(1.0, 1.0, 1.0)) * abs(ray_dir_unit_cube));
   float dt = 0.0005; //min(dt_vec.x, min(dt_vec.y, dt_vec.z));  //0.0005; //
 
 
   // Starting from the entry point, march the ray through the volume and sample it.
   float alpha = volume.alpha; // 0.02  1.0
-  vec3 p = eye + t_hit.x * ray_dir;
+  vec3 p = eye_unit_cube + t_hit.x * ray_dir_unit_cube;
   fragColor = vec4(0.0, 0.0, 0.0, 0.0);
   for (float t = t_hit.x; t < t_hit.y; t += dt) {
     // Step 4.1: Sample the volume, and color it by the transfer function.
@@ -140,7 +147,7 @@ void main(void) {
       break;
     }
 
-    p += ray_dir * dt;
+    p += ray_dir_unit_cube * dt;
   }
 }
 `;
